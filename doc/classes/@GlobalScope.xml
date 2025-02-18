@@ -1543,6 +1543,8 @@
 		<member name="AudioServer" type="AudioServer" setter="" getter="">
 			The [AudioServer] singleton.
 		</member>
+		<member name="Basis4D" type="Basis4D" setter="" getter="">
+		</member>
 		<member name="CameraServer" type="CameraServer" setter="" getter="">
 			The [CameraServer] singleton.
 		</member>
@@ -1570,6 +1572,10 @@
 		</member>
 		<member name="Geometry3D" type="Geometry3D" setter="" getter="">
 			The [Geometry3D] singleton.
+		</member>
+		<member name="Geometry4D" type="Geometry4D" setter="" getter="">
+		</member>
+		<member name="GeometryND" type="GeometryND" setter="" getter="">
 		</member>
 		<member name="IP" type="IP" setter="" getter="">
 			The [IP] singleton.
@@ -1622,11 +1628,17 @@
 		<member name="PhysicsServer3DManager" type="PhysicsServer3DManager" setter="" getter="">
 			The [PhysicsServer3DManager] singleton.
 		</member>
+		<member name="PhysicsServer4D" type="PhysicsServer4D" setter="" getter="">
+		</member>
 		<member name="ProjectSettings" type="ProjectSettings" setter="" getter="">
 			The [ProjectSettings] singleton.
 		</member>
 		<member name="RenderingServer" type="RenderingServer" setter="" getter="">
 			The [RenderingServer] singleton.
+		</member>
+		<member name="RenderingServer4D" type="RenderingServer4D" setter="" getter="">
+		</member>
+		<member name="RenderingServerND" type="RenderingServerND" setter="" getter="">
 		</member>
 		<member name="ResourceLoader" type="ResourceLoader" setter="" getter="">
 			The [ResourceLoader] singleton.
@@ -1648,6 +1660,12 @@
 		</member>
 		<member name="TranslationServer" type="TranslationServer" setter="" getter="">
 			The [TranslationServer] singleton.
+		</member>
+		<member name="Vector4D" type="Vector4D" setter="" getter="">
+		</member>
+		<member name="VectorND" type="VectorND" setter="" getter="">
+		</member>
+		<member name="WireMeshBuilder4D" type="WireMeshBuilder4D" setter="" getter="">
 		</member>
 		<member name="WorkerThreadPool" type="WorkerThreadPool" setter="" getter="">
 			The [WorkerThreadPool] singleton.
