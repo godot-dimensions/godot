@@ -1,0 +1,15 @@
+[submodule "modules/1d"]
+	path = modules/1d
+	url = https://github.com/godot-dimensions/godot-1d
+[submodule "modules/2pt5d"]
+	path = modules/2pt5d
+	url = https://github.com/godot-dimensions/godot-2pt5d
+[submodule "modules/4d"]
+	path = modules/4d
+	url = https://github.com/godot-dimensions/godot-4d
+[submodule "modules/hyperbolic3d"]
+	path = modules/hyperbolic3d
+	url = https://github.com/godot-dimensions/godot-hyperbolic3d
+[submodule "modules/nd"]
+	path = modules/nd
+	url = https://github.com/godot-dimensions/godot-nd
