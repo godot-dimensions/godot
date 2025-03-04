@@ -241,15 +241,14 @@ bool EditorMainScreen::can_auto_switch_screens() const {
 	if (script_tab == nullptr) {
 		return true;
 	}
-	int active_node_index = -1;
-	for (int i = 0; i < button_hb->get_child_count(); i++) {
+	// Only allow auto-switching if the selected tab is to the left of the script tab.
+	for (int i = 0; i < script_tab->get_index(); i++) {
 		Button *button = Object::cast_to<Button>(button_hb->get_child(i));
 		if (button->get_text() == selected_plugin->get_plugin_name()) {
-			active_node_index = i;
-			break;
+			return true;
 		}
 	}
-	return active_node_index < script_tab->get_index();
+	return false;
 }
 
 VBoxContainer *EditorMainScreen::get_control() const {

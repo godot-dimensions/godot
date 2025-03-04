@@ -3848,7 +3848,10 @@ void EditorNode::_set_main_scene_state(Dictionary p_state, Node *p_for_scene) {
 			if (!selected_node) {
 				selected_node = get_edited_scene();
 			}
-			editor_main_screen->select(editor_main_screen->get_plugin_index(editor_data.get_handling_main_editor(selected_node)));
+			int index = editor_main_screen->get_plugin_index(editor_data.get_handling_main_editor(selected_node));
+			if (index > 0) {
+				editor_main_screen->select(index);
+			}
 		}
 	}
 
