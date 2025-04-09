@@ -233,6 +233,25 @@ EditorPlugin *EditorMainScreen::get_plugin_by_name(const String &p_plugin_name) 
 	return main_editor_plugins[p_plugin_name];
 }
 
+bool EditorMainScreen::can_auto_switch_screens() const {
+	if (selected_plugin == nullptr) {
+		return true;
+	}
+	Node *script_tab = button_hb->get_node(NodePath("Script"));
+	if (script_tab == nullptr) {
+		return true;
+	}
+	int active_node_index = -1;
+	for (int i = 0; i < button_hb->get_child_count(); i++) {
+		Button *button = Object::cast_to<Button>(button_hb->get_child(i));
+		if (button->get_text() == selected_plugin->get_plugin_name()) {
+			active_node_index = i;
+			break;
+		}
+	}
+	return active_node_index < script_tab->get_index();
+}
+
 VBoxContainer *EditorMainScreen::get_control() const {
 	return main_screen_vbox;
 }
