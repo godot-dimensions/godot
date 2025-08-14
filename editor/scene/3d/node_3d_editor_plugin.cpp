@@ -245,7 +245,7 @@ void ViewportNavigationControl::_update_navigation() {
 
 			Vector3 forward;
 			if (navigation_scheme == Node3DEditorViewport::FreelookNavigationScheme::FREELOOK_FULLY_AXIS_LOCKED) {
-				// Forward/backward keys will always go straight forward/backward, never moving on the Y axis.
+				// Forward/backward keys will always go horizontally forward/backward, never moving on the Y axis.
 				forward = Vector3(0, 0, delta_normalized.y).rotated(Vector3(0, 1, 0), viewport->camera->get_rotation().y);
 			} else {
 				// Forward/backward keys will be relative to the camera pitch.
@@ -3079,18 +3079,19 @@ void Node3DEditorViewport::_update_freelook(real_t delta) {
 		forward = Vector3(0, 0, -1).rotated(Vector3(0, 1, 0), camera->get_rotation().y);
 	} else {
 		// Forward/backward keys will be relative to the camera pitch.
-		forward = camera->get_transform().basis.xform(Vector3(0, 0, -1));
+		forward = -camera->get_transform().basis.get_column(2);
 	}
 
-	const Vector3 right = camera->get_transform().basis.xform(Vector3(1, 0, 0));
+	const Vector3 right = camera->get_transform().basis.get_column(0);
 
+	Vector3 local_up = camera->get_transform().basis.get_column(1);
 	Vector3 up;
 	if (navigation_scheme == FREELOOK_PARTIALLY_AXIS_LOCKED || navigation_scheme == FREELOOK_FULLY_AXIS_LOCKED) {
 		// Up/down keys will always go up/down regardless of camera pitch.
 		up = Vector3(0, 1, 0);
 	} else {
 		// Up/down keys will be relative to the camera pitch.
-		up = camera->get_transform().basis.xform(Vector3(0, 1, 0));
+		up = local_up;
 	}
 
 	Vector3 direction;
@@ -3115,6 +3116,18 @@ void Node3DEditorViewport::_update_freelook(real_t delta) {
 	}
 	if (inp->is_action_pressed("spatial_editor/freelook_down")) {
 		direction -= up;
+	}
+	if (inp->is_action_pressed("spatial_editor/freelook_global_up")) {
+		direction += Vector3(0, 1, 0);
+	}
+	if (inp->is_action_pressed("spatial_editor/freelook_global_down")) {
+		direction -= Vector3(0, 1, 0);
+	}
+	if (inp->is_action_pressed("spatial_editor/freelook_local_up")) {
+		direction += local_up;
+	}
+	if (inp->is_action_pressed("spatial_editor/freelook_local_down")) {
+		direction -= local_up;
 	}
 
 	real_t speed = freelook_speed;
@@ -6052,6 +6065,12 @@ void Node3DEditorViewport::register_shortcut_action(const String &p_path, const 
 	Ref<Shortcut> sc = ED_SHORTCUT(p_path, p_name, p_keycode, p_physical);
 	shortcut_changed_callback(sc, p_path);
 	// Connect to the change event on the shortcut so the input binding can be updated.
+	sc->connect_changed(callable_mp(this, &Node3DEditorViewport::shortcut_changed_callback).bind(sc, p_path));
+}
+
+void Node3DEditorViewport::register_shortcuts_action(const String &p_path, const String &p_name, const PackedInt32Array &p_keycodes, bool p_physical) {
+	Ref<Shortcut> sc = ED_SHORTCUT_ARRAY(p_path, p_name, p_keycodes, p_physical);
+	shortcut_changed_callback(sc, p_path);
 	sc->connect_changed(callable_mp(this, &Node3DEditorViewport::shortcut_changed_callback).bind(sc, p_path));
 }
 
