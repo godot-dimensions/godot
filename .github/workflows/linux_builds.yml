@@ -13,7 +13,7 @@ env:
   SCONS_FLAGS: >-
     dev_mode=yes
     module_text_server_fb_enabled=yes
-  GODOT_CPP_BRANCH: 4.5
+  GODOT_CPP_BRANCH: 4.5-arcom-command-length
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   ASAN_OPTIONS: color=always:print_suppressions=1:suppressions=${{ github.workspace }}/misc/error_suppressions/asan.txt
@@ -37,7 +37,7 @@ jobs:
             scons-flags: module_mono_enabled=yes compiledb=yes
             bin: ./bin/godot.linuxbsd.editor.x86_64.mono
             build-mono: true
-            doc-test: true
+            doc-test: false # Disabled by godot-dimensions to avoid a failure due doc conflicts between Godot versions.
             proj-conv: true
             proj-export: true
             api-compat: true
