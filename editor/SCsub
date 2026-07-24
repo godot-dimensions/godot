@@ -142,6 +142,7 @@ void register_exporter_types() {{
     SConscript("import/SCsub")
     SConscript("plugins/SCsub")
     SConscript("project_manager/SCsub")
+    SConscript("settings/gdextension/SCsub")
     SConscript("themes/SCsub")
 
     lib = env.add_library("editor", env.editor_sources)
