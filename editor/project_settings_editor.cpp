@@ -38,6 +38,7 @@
 #include "editor/editor_string_names.h"
 #include "editor/editor_undo_redo_manager.h"
 #include "editor/export/editor_export.h"
+#include "editor/settings/gdextension/project_settings_gdextension.h"
 #include "editor/themes/editor_scale.h"
 #include "scene/gui/check_button.h"
 #include "servers/movie_writer/movie_writer.h"
@@ -760,6 +761,10 @@ ProjectSettingsEditor::ProjectSettingsEditor(EditorData *p_data) {
 	plugin_settings = memnew(EditorPluginSettings);
 	plugin_settings->set_name(TTR("Plugins"));
 	tab_container->add_child(plugin_settings);
+
+	gdextension_settings = memnew(ProjectSettingsGDExtension);
+	gdextension_settings->set_name(TTRC("GDExtension"));
+	tab_container->add_child(gdextension_settings);
 
 	timer = memnew(Timer);
 	timer->set_wait_time(1.5);
