@@ -512,6 +512,7 @@ Patches:
 
 - `0001-ustr-literals.patch` ([GH-124792](https://github.com/godotengine/godot/pull/124792))
 - `0002-tuple-include.patch` ([GH-124792](https://github.com/godotengine/godot/pull/124792))
+- `icu4c_remove_final_unicode_set.patch` fixes the `-Wunnecessary-virtual-specifier` warning in Clang. Newer versions of ICU4C do not have this warning, this only applies to older versions.
 
 
 ## jolt_physics
