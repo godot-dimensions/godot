@@ -463,6 +463,8 @@ Files extracted from upstream source:
 - All files in `Jolt/`, except `Jolt/Jolt.cmake` and any files dependent on `ENABLE_OBJECT_STREAM`, as seen in `Jolt/Jolt.cmake`
 - `LICENSE`
 
+Apply `patches` to fix the `-Wunnecessary-virtual-specifier` warning in Clang. Newer versions of ICU4C do not have this warning, this only applies to older versions.
+
 
 ## jpeg-compressor
 
