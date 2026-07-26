@@ -53,6 +53,7 @@ jobs:
               use_ubsan=yes
               linker=mold
             bin: ./bin/godot.linuxbsd.editor.dev.double.x86_64.san
+            install-mold: true
             proj-test: true
 
           - name: Editor with clang sanitizers (target=editor, dev_build=yes, use_asan=yes, use_ubsan=yes, use_llvm=yes, linker=lld)
@@ -170,8 +171,10 @@ jobs:
         run: unzip -o accesskit-c-0.21.2/accesskit_c.zip
 
       - name: Install mold linker
-        if: matrix.proj-test
+        if: matrix.install-mold
         uses: rui314/setup-mold@v1
+        with:
+          make-default: false
 
       - name: Compilation
         uses: ./.github/actions/godot-build
