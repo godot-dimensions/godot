@@ -4710,7 +4710,12 @@ void Viewport::set_world_3d(const Ref<World3D> &p_world_3d) {
 	}
 
 	if (is_inside_tree()) {
-		RenderingServer::get_singleton()->viewport_set_scenario(viewport, find_world_3d()->get_scenario());
+		const Ref<World3D> found_world = find_world_3d();
+		if (found_world.is_valid()) {
+			RenderingServer::get_singleton()->viewport_set_scenario(viewport, found_world->get_scenario());
+		} else {
+			RenderingServer::get_singleton()->viewport_set_scenario(viewport, RID());
+		}
 	}
 
 	_update_audio_listener_3d();
