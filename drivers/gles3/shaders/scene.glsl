@@ -316,6 +316,10 @@ struct DirectionalLightData {
 	mediump float shadow_opacity;
 	mediump float specular;
 	highp uint mask;
+	highp float slice_direction; // Must remain highp to avoid rounding to 1.0 near slice-perpendicular.
+	mediump float pad0;
+	mediump float pad1;
+	mediump float pad2;
 };
 
 layout(std140) uniform DirectionalLights { // ubo:8
@@ -345,7 +349,9 @@ struct LightData { // This structure needs to be as packed as possible.
 	mediump float specular_amount;
 	mediump float shadow_opacity;
 
-	lowp vec3 pad;
+	highp float slice_direction; // Must remain highp to avoid rounding to 1.0 near slice-perpendicular.
+	highp float slice_offset;
+	lowp float pad;
 	lowp uint bake_mode;
 
 	mediump vec4 area_width;
@@ -433,13 +439,26 @@ void light_compute(vec3 N, vec3 L, vec3 V, vec3 light_color, bool is_directional
 #endif
 }
 
-float get_omni_spot_attenuation(float distance, float inv_range, float decay) {
-	float nd = distance * inv_range;
-	nd *= nd;
+float get_omni_spot_attenuation(float distance, float inv_range, float decay, float slice_offset) {
+	// The curve is evaluated against the slice-inclusive distance, normalized by the slice-inclusive
+	// range. Both are kept squared so that neither square root has to be taken, and so that a zero
+	// range keeps degrading to zero attenuation the way it does without a slice offset.
+	float slice_offset_sq = slice_offset * slice_offset;
+	float range_sq = 1.0 / (inv_range * inv_range);
+	float distance_sq = distance * distance + slice_offset_sq;
+	float nd = distance_sq / (range_sq + slice_offset_sq); // nd^2
 	nd *= nd; // nd^4
 	nd = max(1.0 - nd, 0.0);
 	nd *= nd; // nd^2
-	return nd * pow(max(distance, 0.0001), -decay);
+	// The exponent is halved and the clamp squared (1e-8 == 0.0001 * 0.0001) so that the power
+	// consumes the squared distance directly, without a square root.
+	return nd * pow(max(distance_sq, 1e-8), decay * -0.5);
+}
+
+float get_spot_cosine(vec3 light_direction, float light_slice_component, vec3 spot_direction, float spot_slice_direction) {
+	float light_xyz_component = sqrt(max(1.0 - light_slice_component * light_slice_component, 0.0));
+	float spot_xyz_component = sqrt(max(1.0 - spot_slice_direction * spot_slice_direction, 0.0));
+	return light_xyz_component * spot_xyz_component * dot(-light_direction, spot_direction) - light_slice_component * spot_slice_direction;
 }
 
 #if !defined(DISABLE_LIGHT_OMNI) || (defined(ADDITIVE_OMNI) && defined(USE_ADDITIVE_LIGHTING))
@@ -447,10 +466,11 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, float 
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 	vec3 light_rel_vec = omni_lights[idx].position - vertex;
 	float light_length = length(light_rel_vec);
-	float omni_attenuation = get_omni_spot_attenuation(light_length, omni_lights[idx].inv_radius, omni_lights[idx].attenuation);
+	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
+	float omni_attenuation = get_omni_spot_attenuation(light_length, omni_lights[idx].inv_radius, omni_lights[idx].attenuation, omni_lights[idx].slice_offset);
 	vec3 color = omni_lights[idx].color * omni_attenuation; // No light shaders here, so combine.
 
-	light_compute(normal, normalize(light_rel_vec), eye_vec, color, false, roughness,
+	light_compute(normal, light_rel_vec_norm, eye_vec, color, false, roughness,
 			diffuse_light,
 			specular_light);
 }
@@ -462,9 +482,12 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, float 
 		inout vec3 specular_light) {
 	vec3 light_rel_vec = spot_lights[idx].position - vertex;
 	float light_length = length(light_rel_vec);
-	float spot_attenuation = get_omni_spot_attenuation(light_length, spot_lights[idx].inv_radius, spot_lights[idx].attenuation);
+	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
+	float slice_distance = length(vec2(light_length, spot_lights[idx].slice_offset));
+	float slice_component = spot_lights[idx].slice_offset / max(slice_distance, 0.0001);
+	float spot_attenuation = get_omni_spot_attenuation(light_length, spot_lights[idx].inv_radius, spot_lights[idx].attenuation, spot_lights[idx].slice_offset);
 	vec3 spot_dir = spot_lights[idx].direction;
-	float scos = max(dot(-normalize(light_rel_vec), spot_dir), spot_lights[idx].cone_angle);
+	float scos = max(get_spot_cosine(light_rel_vec_norm, slice_component, spot_dir, spot_lights[idx].slice_direction), spot_lights[idx].cone_angle);
 	float spot_rim = max(0.0001, (1.0 - scos) / (1.0 - spot_lights[idx].cone_angle));
 
 	mediump float cone_attenuation = spot_lights[idx].cone_attenuation;
@@ -472,7 +495,7 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, float 
 
 	vec3 color = spot_lights[idx].color * spot_attenuation;
 
-	light_compute(normal, normalize(light_rel_vec), eye_vec, color, false, roughness,
+	light_compute(normal, light_rel_vec_norm, eye_vec, color, false, roughness,
 			diffuse_light, specular_light);
 }
 #endif // !defined(DISABLE_LIGHT_SPOT) || (defined(ADDITIVE_SPOT) && defined(USE_ADDITIVE_LIGHTING))
@@ -1327,6 +1350,10 @@ struct DirectionalLightData {
 	mediump float shadow_opacity;
 	mediump float specular;
 	highp uint mask;
+	highp float slice_direction; // Must remain highp to avoid rounding to 1.0 near slice-perpendicular.
+	mediump float pad0;
+	mediump float pad1;
+	mediump float pad2;
 };
 
 layout(std140) uniform DirectionalLights { // ubo:8
@@ -1358,7 +1385,9 @@ struct LightData { // This structure needs to be as packed as possible.
 	mediump float specular_amount;
 	mediump float shadow_opacity;
 
-	lowp vec3 pad;
+	highp float slice_direction; // Must remain highp to avoid rounding to 1.0 near slice-perpendicular.
+	highp float slice_offset;
+	lowp float pad;
 	lowp uint bake_mode;
 
 	mediump vec4 area_width;
@@ -1622,7 +1651,7 @@ float V_Kelemen(float LdotH) {
 	return 0.25 / (LdotH * LdotH + 1e-4);
 }
 
-void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_directional, float attenuation, vec3 f0, float roughness, float metallic, float specular_amount, vec3 albedo, inout float alpha, vec2 screen_uv,
+void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_directional, float attenuation, float slice_component, vec3 f0, float roughness, float metallic, float specular_amount, vec3 albedo, inout float alpha, vec2 screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 		vec3 backlight,
 #endif
@@ -1781,13 +1810,26 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_di
 #endif // LIGHT_CODE_USED
 }
 
-float get_omni_spot_attenuation(float distance, float inv_range, float decay) {
-	float nd = distance * inv_range;
-	nd *= nd;
+float get_omni_spot_attenuation(float distance, float inv_range, float decay, float slice_offset) {
+	// The curve is evaluated against the slice-inclusive distance, normalized by the slice-inclusive
+	// range. Both are kept squared so that neither square root has to be taken, and so that a zero
+	// range keeps degrading to zero attenuation the way it does without a slice offset.
+	float slice_offset_sq = slice_offset * slice_offset;
+	float range_sq = 1.0 / (inv_range * inv_range);
+	float distance_sq = distance * distance + slice_offset_sq;
+	float nd = distance_sq / (range_sq + slice_offset_sq); // nd^2
 	nd *= nd; // nd^4
 	nd = max(1.0 - nd, 0.0);
 	nd *= nd; // nd^2
-	return nd * pow(max(distance, 0.0001), -decay);
+	// The exponent is halved and the clamp squared (1e-8 == 0.0001 * 0.0001) so that the power
+	// consumes the squared distance directly, without a square root.
+	return nd * pow(max(distance_sq, 1e-8), decay * -0.5);
+}
+
+float get_spot_cosine(vec3 light_direction, float light_slice_component, vec3 spot_direction, float spot_slice_direction) {
+	float light_xyz_component = sqrt(max(1.0 - light_slice_component * light_slice_component, 0.0));
+	float spot_xyz_component = sqrt(max(1.0 - spot_slice_direction * spot_slice_direction, 0.0));
+	return light_xyz_component * spot_xyz_component * dot(-light_direction, spot_direction) - light_slice_component * spot_slice_direction;
 }
 
 #if !defined(DISABLE_LIGHT_OMNI) || defined(ADDITIVE_OMNI)
@@ -1807,7 +1849,7 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 	vec3 light_rel_vec = omni_lights[idx].position - vertex;
 	float light_length = length(light_rel_vec);
-	float omni_attenuation = get_omni_spot_attenuation(light_length, omni_lights[idx].inv_radius, omni_lights[idx].attenuation);
+	float omni_attenuation = get_omni_spot_attenuation(light_length, omni_lights[idx].inv_radius, omni_lights[idx].attenuation, omni_lights[idx].slice_offset);
 	vec3 color = omni_lights[idx].color;
 	float size_A = 0.0;
 
@@ -1818,7 +1860,9 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 
 	omni_attenuation *= shadow;
 
-	light_compute(normal, normalize(light_rel_vec), eye_vec, size_A, color, false, omni_attenuation, f0, roughness, metallic, omni_lights[idx].specular_amount, albedo, alpha, screen_uv,
+	float slice_component = omni_lights[idx].slice_offset / max(length(vec2(light_length, omni_lights[idx].slice_offset)), 0.0001);
+	vec3 light_direction = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
+	light_compute(normal, light_direction, eye_vec, size_A, color, false, omni_attenuation, slice_component, f0, roughness, metallic, omni_lights[idx].specular_amount, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 			backlight,
 #endif
@@ -1896,7 +1940,7 @@ void light_process_area(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 	vec3 fresnel_color = f0 * max(ltc_fresnel.x, 0.0) + (f90 - f0) * max(ltc_fresnel.y, 0.0);
 
 	float light_length = max(0.0, dist);
-	float light_attenuation_raw = get_omni_spot_attenuation(light_length, area_lights[idx].inv_radius, area_lights[idx].attenuation);
+	float light_attenuation_raw = get_omni_spot_attenuation(light_length, area_lights[idx].inv_radius, area_lights[idx].attenuation, 0.0);
 	float light_attenuation_ltc = light_attenuation_raw * light_length * light_length; // solid angle already decreases by inverse square, so attenuation power is 2.0 by default -> subtract 2.0
 
 	vec3 light_color = area_lights[idx].color;
@@ -1918,6 +1962,7 @@ void light_process_area(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 	vec3 area_diffuse = vec3(ltc_diffuse);
 	vec3 area_specular = ltc_specular * fresnel_color;
 	float attenuation = light_attenuation_ltc;
+	float slice_component = 0.0;
 
 	/* clang-format off */
 
@@ -2001,9 +2046,12 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 
 	vec3 light_rel_vec = spot_lights[idx].position - vertex;
 	float light_length = length(light_rel_vec);
-	float spot_attenuation = get_omni_spot_attenuation(light_length, spot_lights[idx].inv_radius, spot_lights[idx].attenuation);
+	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
+	float slice_distance = length(vec2(light_length, spot_lights[idx].slice_offset));
+	float slice_component = spot_lights[idx].slice_offset / max(slice_distance, 0.0001);
+	float spot_attenuation = get_omni_spot_attenuation(light_length, spot_lights[idx].inv_radius, spot_lights[idx].attenuation, spot_lights[idx].slice_offset);
 	vec3 spot_dir = spot_lights[idx].direction;
-	float scos = max(dot(-normalize(light_rel_vec), spot_dir), spot_lights[idx].cone_angle);
+	float scos = max(get_spot_cosine(light_rel_vec_norm, slice_component, spot_dir, spot_lights[idx].slice_direction), spot_lights[idx].cone_angle);
 	float spot_rim = max(0.0001, (1.0 - scos) / (1.0 - spot_lights[idx].cone_angle));
 
 	mediump float cone_attenuation = spot_lights[idx].cone_attenuation;
@@ -2020,7 +2068,7 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 
 	spot_attenuation *= shadow;
 
-	light_compute(normal, normalize(light_rel_vec), eye_vec, size_A, color, false, spot_attenuation, f0, roughness, metallic, spot_lights[idx].specular_amount, albedo, alpha, screen_uv,
+	light_compute(normal, light_rel_vec_norm, eye_vec, size_A, color, false, spot_attenuation, slice_component, f0, roughness, metallic, spot_lights[idx].specular_amount, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 			backlight,
 #endif
@@ -2732,7 +2780,7 @@ void main() {
 				float directionality = clamp(l1_len / l0_luminance, 0.0, 1.0);
 				float specular_intensity = directionality * lightmap_specular_intensity * 2.0;
 
-				light_compute(normal, L_view, view, 0.0, specular_light_color, true, 1.0, f0, roughness, metallic, specular_intensity, albedo, alpha, screen_uv,
+				light_compute(normal, L_view, view, 0.0, specular_light_color, true, 1.0, 0.0, f0, roughness, metallic, specular_intensity, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 						backlight,
 #endif
@@ -2825,7 +2873,7 @@ void main() {
 			continue;
 		}
 #endif
-		light_compute(normal, normalize(directional_lights[i].direction), normalize(view), directional_lights[i].size, directional_lights[i].color * directional_lights[i].energy, true, 1.0, f0, roughness, metallic, directional_lights[i].specular, albedo, alpha, screen_uv,
+		light_compute(normal, normalize(directional_lights[i].direction), normalize(view), directional_lights[i].size, directional_lights[i].color * directional_lights[i].energy, true, 1.0, -directional_lights[i].slice_direction, f0, roughness, metallic, directional_lights[i].specular, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 				backlight,
 #endif
@@ -3170,7 +3218,7 @@ void main() {
 
 #ifndef USE_VERTEX_LIGHTING
 	if (bool(directional_lights[directional_shadow_index].mask & layer_mask)) {
-		light_compute(normal, normalize(directional_lights[directional_shadow_index].direction), normalize(view), directional_lights[directional_shadow_index].size, directional_lights[directional_shadow_index].color * directional_lights[directional_shadow_index].energy, true, directional_shadow, f0, roughness, metallic, directional_lights[directional_shadow_index].specular, albedo, alpha, screen_uv,
+		light_compute(normal, normalize(directional_lights[directional_shadow_index].direction), normalize(view), directional_lights[directional_shadow_index].size, directional_lights[directional_shadow_index].color * directional_lights[directional_shadow_index].energy, true, directional_shadow, -directional_lights[directional_shadow_index].slice_direction, f0, roughness, metallic, directional_lights[directional_shadow_index].specular, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 				backlight,
 #endif
