@@ -39,11 +39,14 @@
 
 void Light3D::set_param(Param p_param, real_t p_value) {
 	ERR_FAIL_INDEX(p_param, PARAM_MAX);
+	if (p_param == PARAM_SLICE_DIRECTION) {
+		p_value = CLAMP(p_value, -1.0, 1.0);
+	}
 	param[p_param] = p_value;
 
 	RS::get_singleton()->light_set_param(light, RSE::LightParam(p_param), p_value);
 
-	if (p_param == PARAM_SPOT_ANGLE || p_param == PARAM_RANGE) {
+	if (p_param == PARAM_SPOT_ANGLE || p_param == PARAM_RANGE || p_param == PARAM_SLICE_DIRECTION || p_param == PARAM_SLICE_OFFSET) {
 		update_gizmos();
 
 		if (p_param == PARAM_SPOT_ANGLE) {
@@ -177,6 +180,13 @@ AABB Light3D::get_aabb() const {
 
 	} else if (type == RSE::LIGHT_SPOT) {
 		real_t cone_slant_height = param[PARAM_RANGE];
+		// When the slice direction and the slice offset have opposite signs, the slice term of the
+		// spot cosine is positive, so the cone can light geometry outside of its 3D cone, including
+		// behind the light. Force an oversized AABB in that case to prevent culling the light away.
+		// Any other combination only narrows the 3D cone, so the regular AABB below still covers it.
+		if (param[PARAM_SLICE_DIRECTION] * param[PARAM_SLICE_OFFSET] < 0.0) {
+			return AABB(Vector3(-1, -1, -1) * cone_slant_height, Vector3(2, 2, 2) * cone_slant_height);
+		}
 		real_t cone_angle_rad = Math::deg_to_rad(param[PARAM_SPOT_ANGLE]);
 
 		if (cone_angle_rad > Math::PI / 2.0) {
@@ -475,6 +485,8 @@ void Light3D::_bind_methods() {
 	BIND_ENUM_CONSTANT(PARAM_INTENSITY);
 	BIND_ENUM_CONSTANT(PARAM_CONTACT_SHADOW_OPACITY);
 	BIND_ENUM_CONSTANT(PARAM_CONTACT_SHADOW_BLUR);
+	BIND_ENUM_CONSTANT(PARAM_SLICE_DIRECTION);
+	BIND_ENUM_CONSTANT(PARAM_SLICE_OFFSET);
 	BIND_ENUM_CONSTANT(PARAM_MAX);
 
 	BIND_ENUM_CONSTANT(BAKE_DISABLED);
@@ -531,6 +543,8 @@ Light3D::Light3D(RSE::LightType p_type) {
 	set_param(PARAM_SHADOW_FADE_START, 1);
 	set_param(PARAM_CONTACT_SHADOW_OPACITY, 1.0);
 	set_param(PARAM_CONTACT_SHADOW_BLUR, 1.0);
+	set_param(PARAM_SLICE_DIRECTION, 0.0);
+	set_param(PARAM_SLICE_OFFSET, 0.0);
 	// For OmniLight3D and SpotLight3D, specified in Lumens.
 	set_param(PARAM_INTENSITY, 1000.0);
 	set_temperature(6500.0); // Nearly white.
@@ -624,6 +638,8 @@ void DirectionalLight3D::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "directional_shadow_max_distance", PROPERTY_HINT_RANGE, "0,8192,0.1,or_greater,exp"), "set_param", "get_param", PARAM_SHADOW_MAX_DISTANCE);
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "directional_shadow_pancake_size", PROPERTY_HINT_RANGE, "0,1024,0.1,or_greater,exp"), "set_param", "get_param", PARAM_SHADOW_PANCAKE_SIZE);
 
+	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "directional_slice_direction", PROPERTY_HINT_RANGE, "-1,1,0.001"), "set_param", "get_param", PARAM_SLICE_DIRECTION);
+
 	BIND_ENUM_CONSTANT(SHADOW_ORTHOGONAL);
 	BIND_ENUM_CONSTANT(SHADOW_PARALLEL_2_SPLITS);
 	BIND_ENUM_CONSTANT(SHADOW_PARALLEL_4_SPLITS);
@@ -676,6 +692,7 @@ void OmniLight3D::_bind_methods() {
 	ADD_GROUP("Omni", "omni_");
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "omni_range", PROPERTY_HINT_RANGE, "0,4096,0.001,or_greater,exp,suffix:m"), "set_param", "get_param", PARAM_RANGE);
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "omni_attenuation", PROPERTY_HINT_RANGE, "-10,10,0.001,or_greater,or_less"), "set_param", "get_param", PARAM_ATTENUATION);
+	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "omni_slice_offset", PROPERTY_HINT_RANGE, "-4096,4096,0.001,or_greater,or_less,suffix:m"), "set_param", "get_param", PARAM_SLICE_OFFSET);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "omni_shadow_mode", PROPERTY_HINT_ENUM, "Dual Paraboloid,Cube"), "set_shadow_mode", "get_shadow_mode");
 
 	BIND_ENUM_CONSTANT(SHADOW_DUAL_PARABOLOID);
@@ -711,6 +728,8 @@ void SpotLight3D::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "spot_attenuation", PROPERTY_HINT_RANGE, "-10,10,0.01,or_greater,or_less"), "set_param", "get_param", PARAM_ATTENUATION);
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "spot_angle", PROPERTY_HINT_RANGE, "0,180,0.01,degrees"), "set_param", "get_param", PARAM_SPOT_ANGLE);
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "spot_angle_attenuation", PROPERTY_HINT_EXP_EASING, "attenuation"), "set_param", "get_param", PARAM_SPOT_ATTENUATION);
+	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "spot_slice_direction", PROPERTY_HINT_RANGE, "-1,1,0.001"), "set_param", "get_param", PARAM_SLICE_DIRECTION);
+	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "spot_slice_offset", PROPERTY_HINT_RANGE, "-4096,4096,0.001,or_greater,or_less,suffix:m"), "set_param", "get_param", PARAM_SLICE_OFFSET);
 }
 
 SpotLight3D::SpotLight3D() :

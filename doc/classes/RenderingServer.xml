@@ -5176,7 +5176,13 @@
 		<constant name="LIGHT_PARAM_CONTACT_SHADOW_BLUR" value="22" enum="LightParam">
 			Blurs the edges of the contact shadow. [code]0.0[/code] produces sharp shadows; higher values increase the noise magnitude.
 		</constant>
-		<constant name="LIGHT_PARAM_MAX" value="23" enum="LightParam">
+		<constant name="LIGHT_PARAM_SLICE_DIRECTION" value="23" enum="LightParam">
+			The signed slice-normal component of the normalized direction in which a spot or directional light emits rays. The value is clamped to the range [code][-1.0, 1.0][/code]. A value of [code]0.0[/code] means the rays travel entirely within the rendered 3D slice. Positive values point toward the positive slice-normal direction.
+		</constant>
+		<constant name="LIGHT_PARAM_SLICE_OFFSET" value="24" enum="LightParam">
+			The signed perpendicular offset from the rendered 3D slice to an omni or spot light. The sign identifies which side of the slice contains the light. Attenuation depends on the offset's magnitude. At [code]0.0[/code], the light uses its regular 3D attenuation curve.
+		</constant>
+		<constant name="LIGHT_PARAM_MAX" value="25" enum="LightParam">
 			Represents the size of the [enum LightParam] enum.
 		</constant>
 		<constant name="LIGHT_BAKE_DISABLED" value="0" enum="LightBakeMode">

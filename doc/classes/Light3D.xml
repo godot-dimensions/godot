@@ -213,7 +213,13 @@
 		<constant name="PARAM_CONTACT_SHADOW_BLUR" value="22" enum="Param">
 			Constant for accessing [member shadow_contact_shadows_blur].
 		</constant>
-		<constant name="PARAM_MAX" value="23" enum="Param">
+		<constant name="PARAM_SLICE_DIRECTION" value="23" enum="Param">
+			Constant for accessing [member SpotLight3D.spot_slice_direction] and [member DirectionalLight3D.directional_slice_direction].
+		</constant>
+		<constant name="PARAM_SLICE_OFFSET" value="24" enum="Param">
+			Constant for accessing [member OmniLight3D.omni_slice_offset] and [member SpotLight3D.spot_slice_offset].
+		</constant>
+		<constant name="PARAM_MAX" value="25" enum="Param">
 			Represents the size of the [enum Param] enum.
 		</constant>
 		<constant name="BAKE_DISABLED" value="0" enum="BakeMode">

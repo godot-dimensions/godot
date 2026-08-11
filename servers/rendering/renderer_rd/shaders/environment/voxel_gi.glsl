@@ -61,6 +61,10 @@ struct Light {
 	vec3 direction;
 	bool has_shadow;
 
+	highp float slice_direction;
+	float slice_offset;
+	vec2 pad;
+
 	vec4 area_width;
 	vec4 area_height;
 	vec4 area_projector_rect;
@@ -198,13 +202,26 @@ float raymarch(float distance, float distance_adv, vec3 from, vec3 direction) {
 	return occlusion; //max(0.0,distance);
 }
 
-float get_omni_attenuation(float distance, float inv_range, float decay) {
-	float nd = distance * inv_range;
-	nd *= nd;
+float get_omni_attenuation(float distance, float inv_range, float decay, float slice_offset) {
+	// The curve is evaluated against the slice-inclusive distance, normalized by the slice-inclusive
+	// range. Both are kept squared so that neither square root has to be taken, and so that a zero
+	// range keeps degrading to zero attenuation the way it does without a slice offset.
+	float slice_offset_sq = slice_offset * slice_offset;
+	float range_sq = 1.0 / (inv_range * inv_range);
+	float distance_sq = distance * distance + slice_offset_sq;
+	float nd = distance_sq / (range_sq + slice_offset_sq); // nd^2
 	nd *= nd; // nd^4
 	nd = max(1.0 - nd, 0.0);
 	nd *= nd; // nd^2
-	return nd * pow(max(distance, 0.0001), -decay);
+	// The exponent is halved and the clamp squared (1e-8 == 0.0001 * 0.0001) so that the power
+	// consumes the squared distance directly, without a square root.
+	return nd * pow(max(distance_sq, 1e-8), decay * -0.5);
+}
+
+float get_spot_cosine(vec3 light_direction, float light_slice_component, vec3 spot_direction, float spot_slice_direction) {
+	float light_xyz_component = sqrt(max(1.0 - light_slice_component * light_slice_component, 0.0));
+	float spot_xyz_component = sqrt(max(1.0 - spot_slice_direction * spot_slice_direction, 0.0));
+	return light_xyz_component * spot_xyz_component * dot(-light_direction, spot_direction) - light_slice_component * spot_slice_direction;
 }
 
 bool compute_light_vector(uint light, vec3 pos, out float attenuation, out vec3 light_pos) {
@@ -222,12 +239,15 @@ bool compute_light_vector(uint light, vec3 pos, out float attenuation, out vec3 
 		attenuation = get_omni_attenuation(
 				distance * params.cell_size,
 				1.0 / (lights.data[light].radius * params.cell_size),
-				lights.data[light].attenuation);
+				lights.data[light].attenuation,
+				(lights.data[light].type == LIGHT_TYPE_OMNI || lights.data[light].type == LIGHT_TYPE_SPOT) ? lights.data[light].slice_offset * params.cell_size : 0.0);
 
 		if (lights.data[light].type == LIGHT_TYPE_SPOT) {
-			vec3 rel = normalize(pos - light_pos);
+			vec3 rel = distance > 0.0 ? (pos - light_pos) / distance : vec3(0.0);
+			float slice_distance = length(vec2(distance, lights.data[light].slice_offset));
+			float slice_component = lights.data[light].slice_offset / max(slice_distance, 0.0001);
 			float cos_spot_angle = lights.data[light].cos_spot_angle;
-			float cos_angle = dot(rel, lights.data[light].direction);
+			float cos_angle = get_spot_cosine(-rel, slice_component, lights.data[light].direction, lights.data[light].slice_direction);
 			if (cos_angle < cos_spot_angle) {
 				return false;
 			}
@@ -288,13 +308,15 @@ bool compute_light_at_pos(uint index, vec3 pos, vec3 normal, inout vec3 light, i
 		return false;
 	}
 
-	light_dir = normalize(pos - light_pos);
+	vec3 light_rel_vec = pos - light_pos;
+	float light_distance = length(light_rel_vec);
+	light_dir = light_distance > 0.0 ? light_rel_vec / light_distance : vec3(0.0);
 
 	if (attenuation < 0.01 || (length(normal) > 0.2 && dot(normal, light_dir) >= 0)) {
 		return false; //not facing the light, or attenuation is near zero
 	}
 
-	if (lights.data[index].has_shadow) {
+	if (lights.data[index].has_shadow && light_distance > 0.0) {
 		float distance_adv = get_normal_advance(light_dir);
 
 		vec3 to = pos;
@@ -373,7 +395,7 @@ bool compute_area_light(uint index, vec3 pos, vec3 normal, inout vec3 light) {
 	if (light_length >= lights.data[index].radius) {
 		return false;
 	}
-	float attenuation = get_omni_attenuation(light_length * params.cell_size, 1.0 / (lights.data[index].radius * params.cell_size), lights.data[index].attenuation) * light_length * light_length * params.cell_size * params.cell_size; // LTC integral already decreases by inverse square, so attenuation power is 2.0 by default -> subtract 2.0
+	float attenuation = get_omni_attenuation(light_length * params.cell_size, 1.0 / (lights.data[index].radius * params.cell_size), lights.data[index].attenuation, 0.0) * light_length * light_length * params.cell_size * params.cell_size; // LTC integral already decreases by inverse square, so attenuation power is 2.0 by default -> subtract 2.0
 
 	if (attenuation < 0.01) {
 		return false;

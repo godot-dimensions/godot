@@ -91,6 +91,8 @@ void LightStorage::_light_initialize(RID p_light, RSE::LightType p_type) {
 	light.param[RSE::LIGHT_PARAM_INTENSITY] = p_type == RSE::LIGHT_DIRECTIONAL ? 100000.0 : 1000.0;
 	light.param[RSE::LIGHT_PARAM_CONTACT_SHADOW_OPACITY] = 1.0;
 	light.param[RSE::LIGHT_PARAM_CONTACT_SHADOW_BLUR] = 1.0;
+	light.param[RSE::LIGHT_PARAM_SLICE_DIRECTION] = 0.0;
+	light.param[RSE::LIGHT_PARAM_SLICE_OFFSET] = 0.0;
 
 	light_owner.initialize_rid(p_light, light);
 }
@@ -147,6 +149,9 @@ void LightStorage::light_set_param(RID p_light, RSE::LightParam p_param, float p
 	Light *light = light_owner.get_or_null(p_light);
 	ERR_FAIL_NULL(light);
 	ERR_FAIL_INDEX(p_param, RSE::LIGHT_PARAM_MAX);
+	if (p_param == RSE::LIGHT_PARAM_SLICE_DIRECTION) {
+		p_value = CLAMP(p_value, -1.0f, 1.0f);
+	}
 
 	if (light->param[p_param] == p_value) {
 		return;
@@ -155,6 +160,8 @@ void LightStorage::light_set_param(RID p_light, RSE::LightParam p_param, float p
 	switch (p_param) {
 		case RSE::LIGHT_PARAM_RANGE:
 		case RSE::LIGHT_PARAM_SPOT_ANGLE:
+		case RSE::LIGHT_PARAM_SLICE_DIRECTION:
+		case RSE::LIGHT_PARAM_SLICE_OFFSET:
 		case RSE::LIGHT_PARAM_SHADOW_MAX_DISTANCE:
 		case RSE::LIGHT_PARAM_SHADOW_SPLIT_1_OFFSET:
 		case RSE::LIGHT_PARAM_SHADOW_SPLIT_2_OFFSET:
@@ -399,6 +406,13 @@ AABB LightStorage::light_get_aabb(RID p_light) const {
 	switch (light->type) {
 		case RSE::LIGHT_SPOT: {
 			float len = light->param[RSE::LIGHT_PARAM_RANGE];
+			// When the slice direction and the slice offset have opposite signs, the slice term of the
+			// spot cosine is positive, so the cone can light geometry outside of its 3D cone, including
+			// behind the light. Force an oversized AABB in that case to prevent culling the light away.
+			// Any other combination only narrows the 3D cone, so the regular AABB below still covers it.
+			if (light->param[RSE::LIGHT_PARAM_SLICE_DIRECTION] * light->param[RSE::LIGHT_PARAM_SLICE_OFFSET] < 0.0f) {
+				return AABB(Vector3(-1, -1, -1) * len, Vector3(2, 2, 2) * len);
+			}
 			float angle = Math::deg_to_rad(light->param[RSE::LIGHT_PARAM_SPOT_ANGLE]);
 
 			if (angle > Math::PI * 0.5) {
