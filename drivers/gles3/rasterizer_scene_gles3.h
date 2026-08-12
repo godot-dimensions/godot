@@ -190,7 +190,9 @@ private:
 		float specular_amount;
 		float shadow_opacity;
 
-		float pad[3];
+		float slice_direction;
+		float slice_offset;
+		float pad;
 		uint32_t bake_mode;
 	};
 	static_assert(sizeof(LightData) % 16 == 0, "LightData size must be a multiple of 16 bytes");
@@ -206,6 +208,9 @@ private:
 		uint32_t bake_mode;
 		float shadow_opacity;
 		float specular;
+
+		float slice_direction;
+		float pad[3];
 	};
 	static_assert(sizeof(DirectionalLightData) % 16 == 0, "DirectionalLightData size must be a multiple of 16 bytes");
 
