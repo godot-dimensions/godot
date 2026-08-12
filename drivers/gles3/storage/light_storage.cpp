@@ -64,27 +64,29 @@ void LightStorage::_light_initialize(RID p_light, RS::LightType p_type) {
 	Light light;
 	light.type = p_type;
 
-	light.param[RS::LIGHT_PARAM_ENERGY] = 1.0;
-	light.param[RS::LIGHT_PARAM_INDIRECT_ENERGY] = 1.0;
-	light.param[RS::LIGHT_PARAM_VOLUMETRIC_FOG_ENERGY] = 1.0;
-	light.param[RS::LIGHT_PARAM_SPECULAR] = 0.5;
-	light.param[RS::LIGHT_PARAM_RANGE] = 1.0;
-	light.param[RS::LIGHT_PARAM_SIZE] = 0.0;
-	light.param[RS::LIGHT_PARAM_ATTENUATION] = 1.0;
-	light.param[RS::LIGHT_PARAM_SPOT_ANGLE] = 45;
-	light.param[RS::LIGHT_PARAM_SPOT_ATTENUATION] = 1.0;
-	light.param[RS::LIGHT_PARAM_SHADOW_MAX_DISTANCE] = 0;
-	light.param[RS::LIGHT_PARAM_SHADOW_SPLIT_1_OFFSET] = 0.1;
-	light.param[RS::LIGHT_PARAM_SHADOW_SPLIT_2_OFFSET] = 0.3;
-	light.param[RS::LIGHT_PARAM_SHADOW_SPLIT_3_OFFSET] = 0.6;
-	light.param[RS::LIGHT_PARAM_SHADOW_FADE_START] = 0.8;
-	light.param[RS::LIGHT_PARAM_SHADOW_NORMAL_BIAS] = 1.0;
-	light.param[RS::LIGHT_PARAM_SHADOW_OPACITY] = 1.0;
-	light.param[RS::LIGHT_PARAM_SHADOW_BIAS] = 0.02;
-	light.param[RS::LIGHT_PARAM_SHADOW_BLUR] = 0;
-	light.param[RS::LIGHT_PARAM_SHADOW_PANCAKE_SIZE] = 20.0;
-	light.param[RS::LIGHT_PARAM_TRANSMITTANCE_BIAS] = 0.05;
-	light.param[RS::LIGHT_PARAM_INTENSITY] = p_type == RS::LIGHT_DIRECTIONAL ? 100000.0 : 1000.0;
+	light.param[RSE::LIGHT_PARAM_ENERGY] = 1.0;
+	light.param[RSE::LIGHT_PARAM_INDIRECT_ENERGY] = 1.0;
+	light.param[RSE::LIGHT_PARAM_VOLUMETRIC_FOG_ENERGY] = 1.0;
+	light.param[RSE::LIGHT_PARAM_SPECULAR] = 0.5;
+	light.param[RSE::LIGHT_PARAM_RANGE] = 1.0;
+	light.param[RSE::LIGHT_PARAM_SIZE] = 0.0;
+	light.param[RSE::LIGHT_PARAM_ATTENUATION] = 1.0;
+	light.param[RSE::LIGHT_PARAM_SPOT_ANGLE] = 45;
+	light.param[RSE::LIGHT_PARAM_SPOT_ATTENUATION] = 1.0;
+	light.param[RSE::LIGHT_PARAM_SHADOW_MAX_DISTANCE] = 0;
+	light.param[RSE::LIGHT_PARAM_SHADOW_SPLIT_1_OFFSET] = 0.1;
+	light.param[RSE::LIGHT_PARAM_SHADOW_SPLIT_2_OFFSET] = 0.3;
+	light.param[RSE::LIGHT_PARAM_SHADOW_SPLIT_3_OFFSET] = 0.6;
+	light.param[RSE::LIGHT_PARAM_SHADOW_FADE_START] = 0.8;
+	light.param[RSE::LIGHT_PARAM_SHADOW_NORMAL_BIAS] = 1.0;
+	light.param[RSE::LIGHT_PARAM_SHADOW_OPACITY] = 1.0;
+	light.param[RSE::LIGHT_PARAM_SHADOW_BIAS] = 0.02;
+	light.param[RSE::LIGHT_PARAM_SHADOW_BLUR] = 0;
+	light.param[RSE::LIGHT_PARAM_SHADOW_PANCAKE_SIZE] = 20.0;
+	light.param[RSE::LIGHT_PARAM_TRANSMITTANCE_BIAS] = 0.05;
+	light.param[RSE::LIGHT_PARAM_INTENSITY] = p_type == RSE::LIGHT_DIRECTIONAL ? 100000.0 : 1000.0;
+	light.param[RSE::LIGHT_PARAM_SLICE_DIRECTION] = 0.0;
+	light.param[RSE::LIGHT_PARAM_SLICE_OFFSET] = 0.0;
 
 	light_owner.initialize_rid(p_light, light);
 }
@@ -132,22 +134,27 @@ void LightStorage::light_set_color(RID p_light, const Color &p_color) {
 void LightStorage::light_set_param(RID p_light, RS::LightParam p_param, float p_value) {
 	Light *light = light_owner.get_or_null(p_light);
 	ERR_FAIL_NULL(light);
-	ERR_FAIL_INDEX(p_param, RS::LIGHT_PARAM_MAX);
+	ERR_FAIL_INDEX(p_param, RSE::LIGHT_PARAM_MAX);
+	if (p_param == RSE::LIGHT_PARAM_SLICE_DIRECTION) {
+		p_value = CLAMP(p_value, -1.0f, 1.0f);
+	}
 
 	if (light->param[p_param] == p_value) {
 		return;
 	}
 
 	switch (p_param) {
-		case RS::LIGHT_PARAM_RANGE:
-		case RS::LIGHT_PARAM_SPOT_ANGLE:
-		case RS::LIGHT_PARAM_SHADOW_MAX_DISTANCE:
-		case RS::LIGHT_PARAM_SHADOW_SPLIT_1_OFFSET:
-		case RS::LIGHT_PARAM_SHADOW_SPLIT_2_OFFSET:
-		case RS::LIGHT_PARAM_SHADOW_SPLIT_3_OFFSET:
-		case RS::LIGHT_PARAM_SHADOW_NORMAL_BIAS:
-		case RS::LIGHT_PARAM_SHADOW_PANCAKE_SIZE:
-		case RS::LIGHT_PARAM_SHADOW_BIAS: {
+		case RSE::LIGHT_PARAM_RANGE:
+		case RSE::LIGHT_PARAM_SPOT_ANGLE:
+		case RSE::LIGHT_PARAM_SLICE_DIRECTION:
+		case RSE::LIGHT_PARAM_SLICE_OFFSET:
+		case RSE::LIGHT_PARAM_SHADOW_MAX_DISTANCE:
+		case RSE::LIGHT_PARAM_SHADOW_SPLIT_1_OFFSET:
+		case RSE::LIGHT_PARAM_SHADOW_SPLIT_2_OFFSET:
+		case RSE::LIGHT_PARAM_SHADOW_SPLIT_3_OFFSET:
+		case RSE::LIGHT_PARAM_SHADOW_NORMAL_BIAS:
+		case RSE::LIGHT_PARAM_SHADOW_PANCAKE_SIZE:
+		case RSE::LIGHT_PARAM_SHADOW_BIAS: {
 			light->version++;
 			light->dependency.changed_notify(Dependency::DEPENDENCY_CHANGED_LIGHT);
 		} break;
@@ -332,9 +339,13 @@ AABB LightStorage::light_get_aabb(RID p_light) const {
 	ERR_FAIL_NULL_V(light, AABB());
 
 	switch (light->type) {
-		case RS::LIGHT_SPOT: {
-			float len = light->param[RS::LIGHT_PARAM_RANGE];
-			float size = Math::tan(Math::deg_to_rad(light->param[RS::LIGHT_PARAM_SPOT_ANGLE])) * len;
+		case RSE::LIGHT_SPOT: {
+			float len = light->param[RSE::LIGHT_PARAM_RANGE];
+			// Force an oversized AABB for sliced spot lights to prevent accidental culling of the light at some slice angles.
+			if (light->param[RSE::LIGHT_PARAM_SLICE_OFFSET] != 0.0f || light->param[RSE::LIGHT_PARAM_SLICE_DIRECTION] != 0.0f) {
+				return AABB(Vector3(-1, -1, -1) * len, Vector3(2, 2, 2) * len);
+			}
+			float size = Math::tan(Math::deg_to_rad(light->param[RSE::LIGHT_PARAM_SPOT_ANGLE])) * len;
 			return AABB(Vector3(-size, -size, -len), Vector3(size * 2, size * 2, len));
 		};
 		case RS::LIGHT_OMNI: {

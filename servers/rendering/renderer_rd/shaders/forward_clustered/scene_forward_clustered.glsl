@@ -2072,7 +2072,7 @@ void fragment_shader(in SceneData scene_data) {
 #else
 					directional_lights.data[i].color * directional_lights.data[i].energy * tint,
 #endif
-					true, shadow, f0, orms, 1.0, albedo, alpha,
+					true, shadow, -directional_lights.data[i].slice_direction, f0, orms, 1.0, albedo, alpha,
 #ifdef LIGHT_BACKLIGHT_USED
 					backlight,
 #endif

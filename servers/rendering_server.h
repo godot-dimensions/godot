@@ -57,6 +57,10 @@
 #define ERR_NOT_ON_RENDER_THREAD_V(m_ret)
 #endif
 
+// Defined when lights support slice offsets, slice directions, and the
+// LIGHT_SLICE_COMPONENT spatial shader built-in.
+#define GODOT_LIGHT_SLICE_PARAMETERS_ENABLED 1
+
 template <typename T>
 class TypedArray;
 
@@ -493,6 +497,8 @@ public:
 		LIGHT_PARAM_SHADOW_BLUR,
 		LIGHT_PARAM_TRANSMITTANCE_BIAS,
 		LIGHT_PARAM_INTENSITY,
+		LIGHT_PARAM_SLICE_DIRECTION,
+		LIGHT_PARAM_SLICE_OFFSET,
 		LIGHT_PARAM_MAX
 	};
 
@@ -1861,5 +1867,8 @@ VARIANT_ENUM_CAST(RenderingServer::Features);
 
 // Alias to make it easier to use.
 #define RS RenderingServer
+
+// Forward compatibility with Godot 4.7+ which splits out RenderingServerEnums.
+#define RSE RenderingServer
 
 #endif // RENDERING_SERVER_H
