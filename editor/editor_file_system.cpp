@@ -404,7 +404,9 @@ void EditorFileSystem::_scan_filesystem() {
 		memdelete(first_scan_root_dir);
 		first_scan_root_dir = nullptr;
 	} else {
-		//on the first scan this is done from the main thread after re-importing
+		// A local `sd` is created only on non-first scan, otherwise `sd` is not owned by this function.
+		memdelete(sd);
+		// On the first scan this is done from the main thread after re-importing.
 		_save_filesystem_cache();
 	}
 
