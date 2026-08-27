@@ -40,7 +40,7 @@
 			[b]Note:[/b] Shadow maps and projector textures remain projected 3D approximations and do not account for this property.
 		</member>
 		<member name="spot_slice_offset" type="float" setter="set_param" getter="get_param" default="0.0">
-			The signed perpendicular offset from the rendered 3D slice to the spotlight. The sign identifies which side of the slice contains the light. Distance attenuation uses the corresponding 4D distance, and angular attenuation is evaluated together with [member spot_slice_direction]. At [code]0.0[/code], distance attenuation uses the regular 3D distance.
+			The signed perpendicular offset from the rendered 3D slice to the spotlight. The sign identifies which side of the slice contains the light. Distance attenuation uses the corresponding 4D distance, and angular attenuation is evaluated together with [member spot_slice_direction]. [member spot_range] is therefore the spotlight's full range including this offset, and its reach within the rendered slice is [code]sqrt(spot_range * spot_range - spot_slice_offset * spot_slice_offset)[/code]. The light is not visible once [code]abs(spot_slice_offset)[/code] reaches [member spot_range]. At [code]0.0[/code], distance attenuation uses the regular 3D distance.
 			[b]Note:[/b] Shadow maps and projector textures remain projected 3D approximations and do not account for this property.
 		</member>
 	</members>
