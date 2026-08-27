@@ -434,12 +434,12 @@ float get_spot_cosine(vec3 light_direction, float light_slice_component, vec3 sp
 }
 
 #if !defined(DISABLE_LIGHT_OMNI) || (defined(ADDITIVE_OMNI) && defined(USE_ADDITIVE_LIGHTING))
-void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, float roughness,
+void light_process_omni(uint idx, vec3 vertex, float vertex_w, vec3 eye_vec, vec3 normal, float roughness,
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 	vec3 light_rel_vec = omni_lights[idx].position - vertex;
 	float light_length = length(light_rel_vec);
 	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
-	float omni_attenuation = get_omni_spot_attenuation(light_length, omni_lights[idx].inv_radius, omni_lights[idx].attenuation, omni_lights[idx].slice_offset);
+	float omni_attenuation = get_omni_spot_attenuation(light_length, omni_lights[idx].inv_radius, omni_lights[idx].attenuation, omni_lights[idx].slice_offset - vertex_w);
 	vec3 color = omni_lights[idx].color * omni_attenuation; // No light shaders here, so combine.
 
 	light_compute(normal, light_rel_vec_norm, eye_vec, color, false, roughness,
@@ -449,15 +449,16 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, float 
 #endif // !defined(DISABLE_LIGHT_OMNI) || (defined(ADDITIVE_OMNI) && defined(USE_ADDITIVE_LIGHTING))
 
 #if !defined(DISABLE_LIGHT_SPOT) || (defined(ADDITIVE_SPOT) && defined(USE_ADDITIVE_LIGHTING))
-void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, float roughness,
+void light_process_spot(uint idx, vec3 vertex, float vertex_w, vec3 eye_vec, vec3 normal, float roughness,
 		inout vec3 diffuse_light,
 		inout vec3 specular_light) {
 	vec3 light_rel_vec = spot_lights[idx].position - vertex;
 	float light_length = length(light_rel_vec);
 	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
-	float slice_distance = length(vec2(light_length, spot_lights[idx].slice_offset));
-	float slice_component = spot_lights[idx].slice_offset / max(slice_distance, 0.0001);
-	float spot_attenuation = get_omni_spot_attenuation(light_length, spot_lights[idx].inv_radius, spot_lights[idx].attenuation, spot_lights[idx].slice_offset);
+	float light_rel_w = spot_lights[idx].slice_offset - vertex_w;
+	float slice_distance = length(vec2(light_length, light_rel_w));
+	float slice_component = light_rel_w / max(slice_distance, 0.0001);
+	float spot_attenuation = get_omni_spot_attenuation(light_length, spot_lights[idx].inv_radius, spot_lights[idx].attenuation, light_rel_w);
 	vec3 spot_dir = spot_lights[idx].direction;
 	float scos = max(get_spot_cosine(light_rel_vec_norm, slice_component, spot_dir, spot_lights[idx].slice_direction), spot_lights[idx].cone_angle);
 	float spot_rim = max(0.0001, (1.0 - scos) / (1.0 - spot_lights[idx].cone_angle));
@@ -518,6 +519,7 @@ uniform mediump vec2 uv_offset;
 /* Varyings */
 
 out highp vec3 vertex_interp;
+out highp float vertex_w_interp;
 #ifdef NORMAL_USED
 out vec3 normal_interp;
 #endif
@@ -714,6 +716,7 @@ void vertex_shader(vec4 vertex_angle_attrib_input,
 	float z_clip_scale = 1.0;
 #endif
 
+	float vertex_w = 0.0;
 	float roughness = 1.0;
 
 	highp mat4 modelview = scene_data_input.view_matrix * model_matrix;
@@ -757,6 +760,7 @@ void vertex_shader(vec4 vertex_angle_attrib_input,
 #endif
 
 	vertex_interp = vertex;
+	vertex_w_interp = vertex_w;
 
 	// Normalize TBN vectors before interpolation, per MikkTSpace.
 	// See: http://www.mikktspace.com/
@@ -869,14 +873,14 @@ void vertex_shader(vec4 vertex_angle_attrib_input,
 
 #ifndef DISABLE_LIGHT_OMNI
 	for (uint i = 0u; i < omni_light_count; i++) {
-		light_process_omni(omni_light_indices[i], vertex_interp, view, normal_interp, roughness,
+		light_process_omni(omni_light_indices[i], vertex_interp, vertex_w_interp, view, normal_interp, roughness,
 				diffuse_light_interp.rgb, specular_light_interp.rgb);
 	}
 #endif // !DISABLE_LIGHT_OMNI
 
 #ifndef DISABLE_LIGHT_SPOT
 	for (uint i = 0u; i < spot_light_count; i++) {
-		light_process_spot(spot_light_indices[i], vertex_interp, view, normal_interp, roughness,
+		light_process_spot(spot_light_indices[i], vertex_interp, vertex_w_interp, view, normal_interp, roughness,
 				diffuse_light_interp.rgb, specular_light_interp.rgb);
 	}
 #endif // !DISABLE_LIGHT_SPOT
@@ -896,12 +900,12 @@ void vertex_shader(vec4 vertex_angle_attrib_input,
 #endif // !defined(ADDITIVE_OMNI) && !defined(ADDITIVE_SPOT)
 
 #ifdef ADDITIVE_OMNI
-	light_process_omni(omni_light_index, vertex_interp, view, normal_interp, roughness,
+	light_process_omni(omni_light_index, vertex_interp, vertex_w_interp, view, normal_interp, roughness,
 			additive_diffuse_light_interp.rgb, additive_specular_light_interp.rgb);
 #endif // ADDITIVE_OMNI
 
 #ifdef ADDITIVE_SPOT
-	light_process_spot(spot_light_index, vertex_interp, view, normal_interp, roughness,
+	light_process_spot(spot_light_index, vertex_interp, vertex_w_interp, view, normal_interp, roughness,
 			additive_diffuse_light_interp.rgb, additive_specular_light_interp.rgb);
 #endif // ADDITIVE_SPOT
 
@@ -1092,6 +1096,7 @@ in vec3 normal_interp;
 #endif
 
 in highp vec3 vertex_interp;
+in highp float vertex_w_interp;
 
 #ifdef USE_ADDITIVE_LIGHTING
 in highp vec4 shadow_coord;
@@ -1711,7 +1716,7 @@ float get_spot_cosine(vec3 light_direction, float light_slice_component, vec3 sp
 }
 
 #if !defined(DISABLE_LIGHT_OMNI) || defined(ADDITIVE_OMNI)
-void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f0, float roughness, float metallic, float shadow, vec3 albedo, inout float alpha, vec2 screen_uv,
+void light_process_omni(uint idx, vec3 vertex, float vertex_w, vec3 eye_vec, vec3 normal, vec3 f0, float roughness, float metallic, float shadow, vec3 albedo, inout float alpha, vec2 screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 		vec3 backlight,
 #endif
@@ -1727,18 +1732,20 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 	vec3 light_rel_vec = omni_lights[idx].position - vertex;
 	float light_length = length(light_rel_vec);
-	float omni_attenuation = get_omni_spot_attenuation(light_length, omni_lights[idx].inv_radius, omni_lights[idx].attenuation, omni_lights[idx].slice_offset);
+	float light_rel_w = omni_lights[idx].slice_offset - vertex_w;
+	float slice_distance = length(vec2(light_length, light_rel_w));
+	float omni_attenuation = get_omni_spot_attenuation(light_length, omni_lights[idx].inv_radius, omni_lights[idx].attenuation, light_rel_w);
 	vec3 color = omni_lights[idx].color;
 	float size_A = 0.0;
 
 	if (omni_lights[idx].size > 0.0) {
-		float t = omni_lights[idx].size / max(0.001, light_length);
+		float t = omni_lights[idx].size / max(0.001, slice_distance);
 		size_A = max(0.0, 1.0 - 1.0 / sqrt(1.0 + t * t));
 	}
 
 	omni_attenuation *= shadow;
 
-	float slice_component = omni_lights[idx].slice_offset / max(length(vec2(light_length, omni_lights[idx].slice_offset)), 0.0001);
+	float slice_component = light_rel_w / max(slice_distance, 0.0001);
 	vec3 light_direction = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
 	light_compute(normal, light_direction, eye_vec, size_A, color, false, omni_attenuation, slice_component, f0, roughness, metallic, omni_lights[idx].specular_amount, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
@@ -1759,7 +1766,7 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 #endif // !DISABLE_LIGHT_OMNI
 
 #if !defined(DISABLE_LIGHT_SPOT) || defined(ADDITIVE_SPOT)
-void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f0, float roughness, float metallic, float shadow, vec3 albedo, inout float alpha, vec2 screen_uv,
+void light_process_spot(uint idx, vec3 vertex, float vertex_w, vec3 eye_vec, vec3 normal, vec3 f0, float roughness, float metallic, float shadow, vec3 albedo, inout float alpha, vec2 screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 		vec3 backlight,
 #endif
@@ -1778,9 +1785,10 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 	vec3 light_rel_vec = spot_lights[idx].position - vertex;
 	float light_length = length(light_rel_vec);
 	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
-	float slice_distance = length(vec2(light_length, spot_lights[idx].slice_offset));
-	float slice_component = spot_lights[idx].slice_offset / max(slice_distance, 0.0001);
-	float spot_attenuation = get_omni_spot_attenuation(light_length, spot_lights[idx].inv_radius, spot_lights[idx].attenuation, spot_lights[idx].slice_offset);
+	float light_rel_w = spot_lights[idx].slice_offset - vertex_w;
+	float slice_distance = length(vec2(light_length, light_rel_w));
+	float slice_component = light_rel_w / max(slice_distance, 0.0001);
+	float spot_attenuation = get_omni_spot_attenuation(light_length, spot_lights[idx].inv_radius, spot_lights[idx].attenuation, light_rel_w);
 	vec3 spot_dir = spot_lights[idx].direction;
 	float scos = max(get_spot_cosine(light_rel_vec_norm, slice_component, spot_dir, spot_lights[idx].slice_direction), spot_lights[idx].cone_angle);
 	float spot_rim = max(0.0001, (1.0 - scos) / (1.0 - spot_lights[idx].cone_angle));
@@ -1793,7 +1801,7 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 	float size_A = 0.0;
 
 	if (spot_lights[idx].size > 0.0) {
-		float t = spot_lights[idx].size / max(0.001, light_length);
+		float t = spot_lights[idx].size / max(0.001, slice_distance);
 		size_A = max(0.0, 1.0 - 1.0 / sqrt(1.0 + t * t));
 	}
 
@@ -2031,6 +2039,7 @@ void main() {
 #ifndef RENDER_MOTION_VECTORS
 	//lay out everything, whatever is unused is optimized away anyway
 	vec3 vertex = vertex_interp;
+	float vertex_w = vertex_w_interp;
 #ifdef USE_MULTIVIEW
 	vec3 eye_offset = multiview_data_block.data.eye_offset[ViewIndex].xyz;
 	vec3 view = -normalize(vertex_interp - eye_offset);
@@ -2133,6 +2142,7 @@ void main() {
 
 #ifdef LIGHT_VERTEX_USED
 	vec3 light_vertex = vertex;
+	float light_vertex_w = vertex_w;
 #endif //LIGHT_VERTEX_USED
 
 	highp mat3 model_normal_matrix;
@@ -2151,6 +2161,7 @@ void main() {
 
 #ifdef LIGHT_VERTEX_USED
 	vertex = light_vertex;
+	vertex_w = light_vertex_w;
 #ifdef USE_MULTIVIEW
 	view = -normalize(vertex - eye_offset);
 #else
@@ -2470,7 +2481,7 @@ void main() {
 			break;
 		}
 
-		light_process_omni(omni_light_indices[i], vertex, view, normal, f0, roughness, metallic, 1.0, albedo, alpha, screen_uv,
+		light_process_omni(omni_light_indices[i], vertex, vertex_w, view, normal, f0, roughness, metallic, 1.0, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 				backlight,
 #endif
@@ -2494,7 +2505,7 @@ void main() {
 			break;
 		}
 
-		light_process_spot(spot_light_indices[i], vertex, view, normal, f0, roughness, metallic, 1.0, albedo, alpha, screen_uv,
+		light_process_spot(spot_light_indices[i], vertex, vertex_w, view, normal, f0, roughness, metallic, 1.0, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 				backlight,
 #endif
@@ -2795,7 +2806,7 @@ void main() {
 #endif // SHADOWS_DISABLED
 
 #ifndef USE_VERTEX_LIGHTING
-	light_process_omni(omni_light_index, vertex, view, normal, f0, roughness, metallic, omni_shadow, albedo, alpha, screen_uv,
+	light_process_omni(omni_light_index, vertex, vertex_w, view, normal, f0, roughness, metallic, omni_shadow, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 			backlight,
 #endif
@@ -2825,7 +2836,7 @@ void main() {
 #endif // SHADOWS_DISABLED
 
 #ifndef USE_VERTEX_LIGHTING
-	light_process_spot(spot_light_index, vertex, view, normal, f0, roughness, metallic, spot_shadow, albedo, alpha, screen_uv,
+	light_process_spot(spot_light_index, vertex, vertex_w, view, normal, f0, roughness, metallic, spot_shadow, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 			backlight,
 #endif
