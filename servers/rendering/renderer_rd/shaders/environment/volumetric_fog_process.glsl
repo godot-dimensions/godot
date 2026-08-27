@@ -226,10 +226,8 @@ vec3 hash3f(uvec3 x) {
 }
 
 float get_omni_attenuation(float dist, float inv_range, float decay, float slice_offset) {
-	float range = 1.0 / inv_range;
 	dist = length(vec2(dist, slice_offset));
-	float range_with_slice = length(vec2(range, slice_offset));
-	float nd = dist / range_with_slice;
+	float nd = dist * inv_range;
 	nd *= nd;
 	nd *= nd; // nd^4
 	nd = max(1.0 - nd, 0.0);
