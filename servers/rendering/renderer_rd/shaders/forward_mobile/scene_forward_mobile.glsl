@@ -97,30 +97,31 @@ void axis_angle_to_tbn(vec3 axis, float angle, out vec3 tangent, out vec3 binorm
 /* Varyings */
 
 layout(location = 0) out vec3 vertex_interp;
+layout(location = 1) out float vertex_w_interp;
 
 #ifdef NORMAL_USED
-layout(location = 1) out vec3 normal_interp;
+layout(location = 2) out vec3 normal_interp;
 #endif
 
 #if defined(COLOR_USED)
-layout(location = 2) out vec4 color_interp;
+layout(location = 3) out vec4 color_interp;
 #endif
 
 #ifdef UV_USED
-layout(location = 3) out vec2 uv_interp;
+layout(location = 4) out vec2 uv_interp;
 #endif
 
 #if defined(UV2_USED) || defined(USE_LIGHTMAP)
-layout(location = 4) out vec2 uv2_interp;
+layout(location = 5) out vec2 uv2_interp;
 #endif
 
 #if defined(TANGENT_USED) || defined(NORMAL_MAP_USED) || defined(BENT_NORMAL_MAP_USED) || defined(LIGHT_ANISOTROPY_USED)
-layout(location = 5) out vec3 tangent_interp;
-layout(location = 6) out vec3 binormal_interp;
+layout(location = 6) out vec3 tangent_interp;
+layout(location = 7) out vec3 binormal_interp;
 #endif
 #if !defined(MODE_RENDER_DEPTH) && !defined(MODE_UNSHADED) && defined(USE_VERTEX_LIGHTING)
-layout(location = 7) out vec4 diffuse_light_interp;
-layout(location = 8) out vec4 specular_light_interp;
+layout(location = 8) out vec4 diffuse_light_interp;
+layout(location = 9) out vec4 specular_light_interp;
 
 #include "../scene_forward_vertex_lights_inc.glsl"
 #endif // !defined(MODE_RENDER_DEPTH) && !defined(MODE_UNSHADED) && defined(USE_VERTEX_LIGHTING)
@@ -134,7 +135,7 @@ layout(set = MATERIAL_UNIFORM_SET, binding = 0, std140) uniform MaterialUniforms
 
 #ifdef MODE_DUAL_PARABOLOID
 
-layout(location = 9) out float dp_clip;
+layout(location = 10) out float dp_clip;
 
 #endif
 
@@ -436,6 +437,7 @@ void vertex_shader(in vec3 vertex,
 	float z_clip_scale = 1.0;
 #endif
 
+	float vertex_w = 0.0;
 	float roughness_highp = 1.0;
 
 	mat4 read_view_matrix = transpose(mat4(in_view_matrix[0],
@@ -513,6 +515,7 @@ void vertex_shader(in vec3 vertex,
 #endif
 
 	vertex_interp = vertex;
+	vertex_w_interp = vertex_w;
 
 	// Normalize TBN vectors to account for model/normal transforms that may have scale
 #ifdef NORMAL_USED
@@ -545,7 +548,7 @@ void vertex_shader(in vec3 vertex,
 			break;
 		}
 
-		light_process_omni_vertex(light_index, vertex, view, normal, roughness, diffuse_light.rgb, specular_light.rgb);
+		light_process_omni_vertex(light_index, vertex, vertex_w, view, normal, roughness, diffuse_light.rgb, specular_light.rgb);
 	}
 
 	uint spot_light_count = sc_spot_lights(8);
@@ -556,7 +559,7 @@ void vertex_shader(in vec3 vertex,
 			break;
 		}
 
-		light_process_spot_vertex(light_index, vertex, view, normal, roughness, diffuse_light.rgb, specular_light.rgb);
+		light_process_spot_vertex(light_index, vertex, vertex_w, view, normal, roughness, diffuse_light.rgb, specular_light.rgb);
 	}
 
 	uint directional_lights_count = sc_directional_lights(scene_directional_light_count);
@@ -876,17 +879,18 @@ layout(early_fragment_tests) in;
 // checked for support. Devices with Adreno GPUs don't usually support this capability.
 
 layout(location = 0) in vec3 vertex_interp;
+layout(location = 1) in float vertex_w_interp;
 
 #ifdef NORMAL_USED
-layout(location = 1) in vec3 normal_interp;
+layout(location = 2) in vec3 normal_interp;
 #endif
 
 #if defined(COLOR_USED)
-layout(location = 2) in vec4 color_interp;
+layout(location = 3) in vec4 color_interp;
 #endif
 
 #ifdef UV_USED
-layout(location = 3) in vec2 uv_interp;
+layout(location = 4) in vec2 uv_interp;
 #endif
 
 #if defined(TEXTURE_STREAMING)
@@ -894,22 +898,22 @@ vec2 streaming_uv;
 #endif
 
 #if defined(UV2_USED) || defined(USE_LIGHTMAP)
-layout(location = 4) in vec2 uv2_interp;
+layout(location = 5) in vec2 uv2_interp;
 #endif
 
 #if defined(TANGENT_USED) || defined(NORMAL_MAP_USED) || defined(BENT_NORMAL_MAP_USED) || defined(LIGHT_ANISOTROPY_USED)
-layout(location = 5) in vec3 tangent_interp;
-layout(location = 6) in vec3 binormal_interp;
+layout(location = 6) in vec3 tangent_interp;
+layout(location = 7) in vec3 binormal_interp;
 #endif
 
 #if !defined(MODE_RENDER_DEPTH) && !defined(MODE_UNSHADED) && defined(USE_VERTEX_LIGHTING)
-layout(location = 7) in vec4 diffuse_light_interp;
-layout(location = 8) in vec4 specular_light_interp;
+layout(location = 8) in vec4 diffuse_light_interp;
+layout(location = 9) in vec4 specular_light_interp;
 #endif
 
 #ifdef MODE_DUAL_PARABOLOID
 
-layout(location = 9) in float dp_clip;
+layout(location = 10) in float dp_clip;
 
 #endif
 
@@ -1103,6 +1107,7 @@ void main() {
 
 	//lay out everything, whatever is unused is optimized away anyway
 	vec3 vertex = vertex_interp;
+	float vertex_w = vertex_w_interp;
 #ifdef USE_MULTIVIEW
 	vec3 eye_offset = scene_data.eye_offset[ViewIndex].xyz;
 	vec3 view_highp = -normalize(vertex_interp - eye_offset);
@@ -1210,6 +1215,7 @@ void main() {
 
 #ifdef LIGHT_VERTEX_USED
 	vec3 light_vertex = vertex;
+	float light_vertex_w = vertex_w;
 #endif //LIGHT_VERTEX_USED
 
 	mat3 model_normal_matrix;
@@ -1305,6 +1311,7 @@ void main() {
 
 #ifdef LIGHT_VERTEX_USED
 	vertex = light_vertex;
+	vertex_w = light_vertex_w;
 #ifdef USE_MULTIVIEW
 	view = hvec3(-normalize(vertex - eye_offset));
 #else
@@ -2241,7 +2248,7 @@ void main() {
 			break;
 		}
 
-		light_process_omni(light_index, vertex, view, normal, vertex_ddx, vertex_ddy, f0, roughness, metallic, scene_data.taa_frame_count, albedo, alpha, screen_uv, hvec3(1.0),
+		light_process_omni(light_index, vertex, vertex_w, view, normal, vertex_ddx, vertex_ddy, f0, roughness, metallic, scene_data.taa_frame_count, albedo, alpha, screen_uv, hvec3(1.0),
 #ifdef LIGHT_BACKLIGHT_USED
 				backlight,
 #endif
@@ -2273,7 +2280,7 @@ void main() {
 			break;
 		}
 
-		light_process_spot(light_index, vertex, view, normal, vertex_ddx, vertex_ddy, f0, roughness, metallic, scene_data.taa_frame_count, albedo, alpha, screen_uv, hvec3(1.0),
+		light_process_spot(light_index, vertex, vertex_w, view, normal, vertex_ddx, vertex_ddy, f0, roughness, metallic, scene_data.taa_frame_count, albedo, alpha, screen_uv, hvec3(1.0),
 #ifdef LIGHT_BACKLIGHT_USED
 				backlight,
 #endif
