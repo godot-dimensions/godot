@@ -5180,7 +5180,7 @@
 			The signed slice-normal component of the normalized direction in which a spot or directional light emits rays. The value is clamped to the range [code][-1.0, 1.0][/code]. A value of [code]0.0[/code] means the rays travel entirely within the rendered 3D slice. Positive values point toward the positive slice-normal direction.
 		</constant>
 		<constant name="LIGHT_PARAM_SLICE_OFFSET" value="24" enum="LightParam">
-			The signed perpendicular offset from the rendered 3D slice to an omni or spot light. The sign identifies which side of the slice contains the light. Attenuation depends on the offset's magnitude. At [code]0.0[/code], the light uses its regular 3D attenuation curve.
+			The signed perpendicular offset from the rendered 3D slice to an omni or spot light. The sign identifies which side of the slice contains the light. Attenuation depends on the offset's magnitude and is evaluated using the combined distance, so [constant LIGHT_PARAM_RANGE] is the light's full radius including this offset, and its reach within the rendered slice is [code]sqrt(range * range - slice_offset * slice_offset)[/code]. At [code]0.0[/code], the light uses its regular 3D attenuation curve.
 		</constant>
 		<constant name="LIGHT_PARAM_MAX" value="25" enum="LightParam">
 			Represents the size of the [enum LightParam] enum.

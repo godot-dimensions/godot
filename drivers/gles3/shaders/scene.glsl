@@ -439,13 +439,11 @@ void light_compute(vec3 N, vec3 L, vec3 V, vec3 light_color, bool is_directional
 }
 
 float get_omni_spot_attenuation(float distance, float inv_range, float decay, float slice_offset) {
-	// The curve is evaluated against the slice-inclusive distance, normalized by the slice-inclusive
-	// range. Both are kept squared so that neither square root has to be taken, and so that a zero
-	// range keeps degrading to zero attenuation the way it does without a slice offset.
-	float slice_offset_sq = slice_offset * slice_offset;
-	float range_sq = 1.0 / (inv_range * inv_range);
-	float distance_sq = distance * distance + slice_offset_sq;
-	float nd = distance_sq / (range_sq + slice_offset_sq); // nd^2
+	// The range is the real slice-inclusive radius, so the slice-inclusive distance is
+	// normalized against it directly. Both are kept squared so that no square root has to be
+	// taken: the one the distance itself needs is folded into the power by halving its exponent.
+	float distance_sq = distance * distance + slice_offset * slice_offset;
+	float nd = distance_sq * (inv_range * inv_range); // nd^2
 	nd *= nd; // nd^4
 	nd = max(1.0 - nd, 0.0);
 	nd *= nd; // nd^2
@@ -1793,13 +1791,11 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_di
 }
 
 float get_omni_spot_attenuation(float distance, float inv_range, float decay, float slice_offset) {
-	// The curve is evaluated against the slice-inclusive distance, normalized by the slice-inclusive
-	// range. Both are kept squared so that neither square root has to be taken, and so that a zero
-	// range keeps degrading to zero attenuation the way it does without a slice offset.
-	float slice_offset_sq = slice_offset * slice_offset;
-	float range_sq = 1.0 / (inv_range * inv_range);
-	float distance_sq = distance * distance + slice_offset_sq;
-	float nd = distance_sq / (range_sq + slice_offset_sq); // nd^2
+	// The range is the real slice-inclusive radius, so the slice-inclusive distance is
+	// normalized against it directly. Both are kept squared so that no square root has to be
+	// taken: the one the distance itself needs is folded into the power by halving its exponent.
+	float distance_sq = distance * distance + slice_offset * slice_offset;
+	float nd = distance_sq * (inv_range * inv_range); // nd^2
 	nd *= nd; // nd^4
 	nd = max(1.0 - nd, 0.0);
 	nd *= nd; // nd^2
