@@ -89,6 +89,7 @@ ShaderTypes::ShaderTypes() {
 	shader_modes[RSE::SHADER_SPATIAL].functions["constants"].built_ins["IS_MULTIVIEW"] = constt(ShaderLanguage::TYPE_BOOL);
 
 	shader_modes[RSE::SHADER_SPATIAL].functions["vertex"].built_ins["VERTEX"] = ShaderLanguage::TYPE_VEC3;
+	shader_modes[RSE::SHADER_SPATIAL].functions["vertex"].built_ins["VERTEX_W"] = ShaderLanguage::TYPE_FLOAT;
 	shader_modes[RSE::SHADER_SPATIAL].functions["vertex"].built_ins["NORMAL"] = ShaderLanguage::TYPE_VEC3;
 	shader_modes[RSE::SHADER_SPATIAL].functions["vertex"].built_ins["TANGENT"] = ShaderLanguage::TYPE_VEC3;
 	shader_modes[RSE::SHADER_SPATIAL].functions["vertex"].built_ins["BINORMAL"] = ShaderLanguage::TYPE_VEC3;
@@ -136,6 +137,7 @@ ShaderTypes::ShaderTypes() {
 
 	shader_modes[RSE::SHADER_SPATIAL].functions["fragment"].built_ins["VERTEX"] = constt(ShaderLanguage::TYPE_VEC3);
 	shader_modes[RSE::SHADER_SPATIAL].functions["fragment"].built_ins["LIGHT_VERTEX"] = ShaderLanguage::TYPE_VEC3;
+	shader_modes[RSE::SHADER_SPATIAL].functions["fragment"].built_ins["LIGHT_VERTEX_W"] = ShaderLanguage::TYPE_FLOAT;
 	shader_modes[RSE::SHADER_SPATIAL].functions["fragment"].built_ins["FRAGCOORD"] = constt(ShaderLanguage::TYPE_VEC4);
 	shader_modes[RSE::SHADER_SPATIAL].functions["fragment"].built_ins["FRONT_FACING"] = constt(ShaderLanguage::TYPE_BOOL);
 	shader_modes[RSE::SHADER_SPATIAL].functions["fragment"].built_ins["NORMAL"] = ShaderLanguage::TYPE_VEC3;
