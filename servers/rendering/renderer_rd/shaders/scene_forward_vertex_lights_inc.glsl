@@ -54,12 +54,12 @@ float get_spot_cosine(vec3 light_direction, float light_slice_component, vec3 sp
 	return light_xyz_component * spot_xyz_component * dot(-light_direction, spot_direction) - light_slice_component * spot_slice_direction;
 }
 
-void light_process_omni_vertex(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, float roughness,
+void light_process_omni_vertex(uint idx, vec3 vertex, float vertex_w, vec3 eye_vec, vec3 normal, float roughness,
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 	vec3 light_rel_vec = omni_lights.data[idx].position - vertex;
 	float light_length = length(light_rel_vec);
 	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
-	float omni_attenuation = get_omni_attenuation(light_length, omni_lights.data[idx].inv_radius, omni_lights.data[idx].attenuation, omni_lights.data[idx].slice_offset);
+	float omni_attenuation = get_omni_attenuation(light_length, omni_lights.data[idx].inv_radius, omni_lights.data[idx].attenuation, omni_lights.data[idx].slice_offset - vertex_w);
 	vec3 color = omni_lights.data[idx].color * omni_attenuation;
 
 	light_compute_vertex(normal, light_rel_vec_norm, eye_vec, color, false, roughness,
@@ -67,15 +67,16 @@ void light_process_omni_vertex(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal,
 			specular_light);
 }
 
-void light_process_spot_vertex(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, float roughness,
+void light_process_spot_vertex(uint idx, vec3 vertex, float vertex_w, vec3 eye_vec, vec3 normal, float roughness,
 		inout vec3 diffuse_light,
 		inout vec3 specular_light) {
 	vec3 light_rel_vec = spot_lights.data[idx].position - vertex;
 	float light_length = length(light_rel_vec);
 	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
-	float slice_distance = length(vec2(light_length, spot_lights.data[idx].slice_offset));
-	float slice_component = spot_lights.data[idx].slice_offset / max(slice_distance, 0.0001);
-	float spot_attenuation = get_omni_attenuation(light_length, spot_lights.data[idx].inv_radius, spot_lights.data[idx].attenuation, spot_lights.data[idx].slice_offset);
+	float light_rel_w = spot_lights.data[idx].slice_offset - vertex_w;
+	float slice_distance = length(vec2(light_length, light_rel_w));
+	float slice_component = light_rel_w / max(slice_distance, 0.0001);
+	float spot_attenuation = get_omni_attenuation(light_length, spot_lights.data[idx].inv_radius, spot_lights.data[idx].attenuation, light_rel_w);
 	vec3 spot_dir = spot_lights.data[idx].direction;
 
 	// This conversion to a highp float is crucial to prevent light leaking
