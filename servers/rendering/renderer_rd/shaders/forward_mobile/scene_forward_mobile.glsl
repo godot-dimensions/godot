@@ -84,26 +84,27 @@ layout(constant_id = 17) const bool sc_is_multimesh = false;
 /* Varyings */
 
 layout(location = 0) highp out vec3 vertex_interp;
+layout(location = 1) highp out float vertex_w_interp;
 
 #ifdef NORMAL_USED
-layout(location = 1) mediump out vec3 normal_interp;
+layout(location = 2) mediump out vec3 normal_interp;
 #endif
 
 #if defined(COLOR_USED)
-layout(location = 2) mediump out vec4 color_interp;
+layout(location = 3) mediump out vec4 color_interp;
 #endif
 
 #ifdef UV_USED
-layout(location = 3) mediump out vec2 uv_interp;
+layout(location = 4) mediump out vec2 uv_interp;
 #endif
 
 #if defined(UV2_USED) || defined(USE_LIGHTMAP)
-layout(location = 4) mediump out vec2 uv2_interp;
+layout(location = 5) mediump out vec2 uv2_interp;
 #endif
 
 #if defined(TANGENT_USED) || defined(NORMAL_MAP_USED) || defined(LIGHT_ANISOTROPY_USED)
-layout(location = 5) mediump out vec3 tangent_interp;
-layout(location = 6) mediump out vec3 binormal_interp;
+layout(location = 6) mediump out vec3 tangent_interp;
+layout(location = 7) mediump out vec3 binormal_interp;
 #endif
 
 #ifdef MATERIAL_UNIFORMS_USED
@@ -116,7 +117,7 @@ layout(set = MATERIAL_UNIFORM_SET, binding = 0, std140) uniform MaterialUniforms
 
 #ifdef MODE_DUAL_PARABOLOID
 
-layout(location = 9) out highp float dp_clip;
+layout(location = 10) out highp float dp_clip;
 
 #endif
 
@@ -384,6 +385,7 @@ void main() {
 #endif
 
 	float roughness = 1.0;
+	float vertex_w = 0.0;
 
 	mat4 modelview = scene_data.view_matrix * model_matrix;
 	mat3 modelview_normal = mat3(scene_data.view_matrix) * model_normal_matrix;
@@ -439,6 +441,7 @@ void main() {
 #endif
 
 	vertex_interp = vertex;
+	vertex_w_interp = vertex_w;
 #ifdef NORMAL_USED
 	normal_interp = normalize(normal);
 #endif
@@ -541,31 +544,32 @@ layout(constant_id = 15) const float sc_luminance_multiplier = 2.0;
 /* Varyings */
 
 layout(location = 0) highp in vec3 vertex_interp;
+layout(location = 1) highp in float vertex_w_interp;
 
 #ifdef NORMAL_USED
-layout(location = 1) mediump in vec3 normal_interp;
+layout(location = 2) mediump in vec3 normal_interp;
 #endif
 
 #if defined(COLOR_USED)
-layout(location = 2) mediump in vec4 color_interp;
+layout(location = 3) mediump in vec4 color_interp;
 #endif
 
 #ifdef UV_USED
-layout(location = 3) mediump in vec2 uv_interp;
+layout(location = 4) mediump in vec2 uv_interp;
 #endif
 
 #if defined(UV2_USED) || defined(USE_LIGHTMAP)
-layout(location = 4) mediump in vec2 uv2_interp;
+layout(location = 5) mediump in vec2 uv2_interp;
 #endif
 
 #if defined(TANGENT_USED) || defined(NORMAL_MAP_USED) || defined(LIGHT_ANISOTROPY_USED)
-layout(location = 5) mediump in vec3 tangent_interp;
-layout(location = 6) mediump in vec3 binormal_interp;
+layout(location = 6) mediump in vec3 tangent_interp;
+layout(location = 7) mediump in vec3 binormal_interp;
 #endif
 
 #ifdef MODE_DUAL_PARABOLOID
 
-layout(location = 9) highp in float dp_clip;
+layout(location = 10) highp in float dp_clip;
 
 #endif
 
@@ -731,6 +735,7 @@ void main() {
 
 	//lay out everything, whatever is unused is optimized away anyway
 	vec3 vertex = vertex_interp;
+	float vertex_w = vertex_w_interp;
 #ifdef USE_MULTIVIEW
 	vec3 eye_offset = scene_data.eye_offset[ViewIndex].xyz;
 	vec3 view = -normalize(vertex_interp - eye_offset);
@@ -839,6 +844,7 @@ void main() {
 
 #ifdef LIGHT_VERTEX_USED
 	vec3 light_vertex = vertex;
+	float light_vertex_w = vertex_w;
 #endif //LIGHT_VERTEX_USED
 
 	mat3 model_normal_matrix;
@@ -857,6 +863,7 @@ void main() {
 
 #ifdef LIGHT_VERTEX_USED
 	vertex = light_vertex;
+	vertex_w = light_vertex_w;
 #ifdef USE_MULTIVIEW
 	view = -normalize(vertex - eye_offset);
 #else
@@ -1691,7 +1698,7 @@ void main() {
 
 			shadow = blur_shadow(shadow);
 
-			light_process_omni(light_index, vertex, view, normal, vertex_ddx, vertex_ddy, f0, orms, shadow, albedo, alpha,
+			light_process_omni(light_index, vertex, vertex_w, view, normal, vertex_ddx, vertex_ddy, f0, orms, shadow, albedo, alpha,
 #ifdef LIGHT_BACKLIGHT_USED
 					backlight,
 #endif
@@ -1736,7 +1743,7 @@ void main() {
 
 			shadow = blur_shadow(shadow);
 
-			light_process_spot(light_index, vertex, view, normal, vertex_ddx, vertex_ddy, f0, orms, shadow, albedo, alpha,
+			light_process_spot(light_index, vertex, vertex_w, view, normal, vertex_ddx, vertex_ddy, f0, orms, shadow, albedo, alpha,
 #ifdef LIGHT_BACKLIGHT_USED
 					backlight,
 #endif

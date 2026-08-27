@@ -88,31 +88,32 @@ void axis_angle_to_tbn(vec3 axis, float angle, out vec3 tangent, out vec3 binorm
 /* Varyings */
 
 layout(location = 0) out vec3 vertex_interp;
+layout(location = 1) out float vertex_w_interp;
 
 #ifdef NORMAL_USED
-layout(location = 1) out vec3 normal_interp;
+layout(location = 2) out vec3 normal_interp;
 #endif
 
 #if defined(COLOR_USED)
-layout(location = 2) out vec4 color_interp;
+layout(location = 3) out vec4 color_interp;
 #endif
 
 #ifdef UV_USED
-layout(location = 3) out vec2 uv_interp;
+layout(location = 4) out vec2 uv_interp;
 #endif
 
 #if defined(UV2_USED) || defined(USE_LIGHTMAP)
-layout(location = 4) out vec2 uv2_interp;
+layout(location = 5) out vec2 uv2_interp;
 #endif
 
 #ifdef TANGENT_USED
-layout(location = 5) out vec3 tangent_interp;
-layout(location = 6) out vec3 binormal_interp;
+layout(location = 6) out vec3 tangent_interp;
+layout(location = 7) out vec3 binormal_interp;
 #endif
 
 #ifdef MOTION_VECTORS
-layout(location = 7) out vec4 screen_position;
-layout(location = 8) out vec4 prev_screen_position;
+layout(location = 8) out vec4 screen_position;
+layout(location = 9) out vec4 prev_screen_position;
 #endif
 
 #ifdef MATERIAL_UNIFORMS_USED
@@ -125,11 +126,11 @@ float global_time;
 
 #ifdef MODE_DUAL_PARABOLOID
 
-layout(location = 9) out float dp_clip;
+layout(location = 10) out float dp_clip;
 
 #endif
 
-layout(location = 10) out flat uint instance_index_interp;
+layout(location = 11) out flat uint instance_index_interp;
 
 #ifdef USE_MULTIVIEW
 #ifdef has_VK_KHR_multiview
@@ -144,7 +145,7 @@ vec3 multiview_uv(vec2 uv) {
 ivec3 multiview_uv(ivec2 uv) {
 	return ivec3(uv, int(ViewIndex));
 }
-layout(location = 11) out vec4 combined_projected;
+layout(location = 12) out vec4 combined_projected;
 #else // USE_MULTIVIEW
 // Set to zero, not supported in non stereo
 #define ViewIndex 0
@@ -385,6 +386,7 @@ void vertex_shader(vec3 vertex_input,
 #endif
 
 	float roughness = 1.0;
+	float vertex_w = 0.0;
 
 	mat4 modelview = scene_data.view_matrix * model_matrix;
 	mat3 modelview_normal = mat3(scene_data.view_matrix) * model_normal_matrix;
@@ -440,6 +442,7 @@ void vertex_shader(vec3 vertex_input,
 #endif
 
 	vertex_interp = vertex;
+	vertex_w_interp = vertex_w;
 
 #ifdef NORMAL_USED
 	normal_interp = normal;
@@ -668,40 +671,41 @@ const float sc_luminance_multiplier = 1.0;
 /* Varyings */
 
 layout(location = 0) in vec3 vertex_interp;
+layout(location = 1) in float vertex_w_interp;
 
 #ifdef NORMAL_USED
-layout(location = 1) in vec3 normal_interp;
+layout(location = 2) in vec3 normal_interp;
 #endif
 
 #if defined(COLOR_USED)
-layout(location = 2) in vec4 color_interp;
+layout(location = 3) in vec4 color_interp;
 #endif
 
 #ifdef UV_USED
-layout(location = 3) in vec2 uv_interp;
+layout(location = 4) in vec2 uv_interp;
 #endif
 
 #if defined(UV2_USED) || defined(USE_LIGHTMAP)
-layout(location = 4) in vec2 uv2_interp;
+layout(location = 5) in vec2 uv2_interp;
 #endif
 
 #ifdef TANGENT_USED
-layout(location = 5) in vec3 tangent_interp;
-layout(location = 6) in vec3 binormal_interp;
+layout(location = 6) in vec3 tangent_interp;
+layout(location = 7) in vec3 binormal_interp;
 #endif
 
 #ifdef MOTION_VECTORS
-layout(location = 7) in vec4 screen_position;
-layout(location = 8) in vec4 prev_screen_position;
+layout(location = 8) in vec4 screen_position;
+layout(location = 9) in vec4 prev_screen_position;
 #endif
 
 #ifdef MODE_DUAL_PARABOLOID
 
-layout(location = 9) in float dp_clip;
+layout(location = 10) in float dp_clip;
 
 #endif
 
-layout(location = 10) in flat uint instance_index_interp;
+layout(location = 11) in flat uint instance_index_interp;
 
 #ifdef USE_MULTIVIEW
 #ifdef has_VK_KHR_multiview
@@ -716,7 +720,7 @@ vec3 multiview_uv(vec2 uv) {
 ivec3 multiview_uv(ivec2 uv) {
 	return ivec3(uv, int(ViewIndex));
 }
-layout(location = 11) in vec4 combined_projected;
+layout(location = 12) in vec4 combined_projected;
 #else // USE_MULTIVIEW
 // Set to zero, not supported in non stereo
 #define ViewIndex 0
@@ -921,6 +925,7 @@ void fragment_shader(in SceneData scene_data) {
 #endif // PREMUL_ALPHA_USED
 	//lay out everything, whatever is unused is optimized away anyway
 	vec3 vertex = vertex_interp;
+	float vertex_w = vertex_w_interp;
 #ifdef USE_MULTIVIEW
 	vec3 eye_offset = scene_data.eye_offset[ViewIndex].xyz;
 	vec3 view = -normalize(vertex_interp - eye_offset);
@@ -1030,6 +1035,7 @@ void fragment_shader(in SceneData scene_data) {
 
 #ifdef LIGHT_VERTEX_USED
 	vec3 light_vertex = vertex;
+	float light_vertex_w = vertex_w;
 #endif //LIGHT_VERTEX_USED
 
 	mat3 model_normal_matrix;
@@ -1051,6 +1057,7 @@ void fragment_shader(in SceneData scene_data) {
 
 #ifdef LIGHT_VERTEX_USED
 	vertex = light_vertex;
+	vertex_w = light_vertex_w;
 #ifdef USE_MULTIVIEW
 	view = -normalize(vertex - eye_offset);
 #else
@@ -2144,7 +2151,7 @@ void fragment_shader(in SceneData scene_data) {
 
 				shadow = blur_shadow(shadow);
 
-				light_process_omni(light_index, vertex, view, normal, vertex_ddx, vertex_ddy, f0, orms, shadow, albedo, alpha,
+				light_process_omni(light_index, vertex, vertex_w, view, normal, vertex_ddx, vertex_ddy, f0, orms, shadow, albedo, alpha,
 #ifdef LIGHT_BACKLIGHT_USED
 						backlight,
 #endif
@@ -2216,7 +2223,7 @@ void fragment_shader(in SceneData scene_data) {
 
 				shadow = blur_shadow(shadow);
 
-				light_process_spot(light_index, vertex, view, normal, vertex_ddx, vertex_ddy, f0, orms, shadow, albedo, alpha,
+				light_process_spot(light_index, vertex, vertex_w, view, normal, vertex_ddx, vertex_ddy, f0, orms, shadow, albedo, alpha,
 #ifdef LIGHT_BACKLIGHT_USED
 						backlight,
 #endif

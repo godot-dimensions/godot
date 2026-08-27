@@ -1214,6 +1214,7 @@ MaterialStorage::MaterialStorage() {
 		actions.renames["MAIN_CAM_INV_VIEW_MATRIX"] = "scene_data.main_cam_inv_view_matrix";
 
 		actions.renames["VERTEX"] = "vertex";
+		actions.renames["VERTEX_W"] = "vertex_w";
 		actions.renames["NORMAL"] = "normal";
 		actions.renames["TANGENT"] = "tangent";
 		actions.renames["BINORMAL"] = "binormal";
@@ -1279,6 +1280,7 @@ MaterialStorage::MaterialStorage() {
 		actions.renames["OUTPUT_IS_SRGB"] = "SHADER_IS_SRGB";
 		actions.renames["CLIP_SPACE_FAR"] = "SHADER_SPACE_FAR";
 		actions.renames["LIGHT_VERTEX"] = "light_vertex";
+		actions.renames["LIGHT_VERTEX_W"] = "light_vertex_w";
 
 		actions.renames["NODE_POSITION_WORLD"] = "model_matrix[3].xyz";
 		actions.renames["CAMERA_POSITION_WORLD"] = "scene_data.inv_view_matrix[3].xyz";
@@ -1327,6 +1329,7 @@ MaterialStorage::MaterialStorage() {
 		actions.usage_defines["INSTANCE_CUSTOM"] = "#define ENABLE_INSTANCE_CUSTOM\n";
 		actions.usage_defines["POSITION"] = "#define OVERRIDE_POSITION\n";
 		actions.usage_defines["LIGHT_VERTEX"] = "#define LIGHT_VERTEX_USED\n";
+		actions.usage_defines["LIGHT_VERTEX_W"] = "#define LIGHT_VERTEX_USED\n";
 
 		actions.usage_defines["ALPHA_SCISSOR_THRESHOLD"] = "#define ALPHA_SCISSOR_USED\n";
 		actions.usage_defines["ALPHA_HASH_SCALE"] = "#define ALPHA_HASH_USED\n";

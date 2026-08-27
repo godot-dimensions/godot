@@ -554,7 +554,7 @@ float light_process_omni_shadow(uint idx, vec3 vertex, vec3 normal) {
 	return 1.0;
 }
 
-void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 vertex_ddx, vec3 vertex_ddy, vec3 f0, uint orms, float shadow, vec3 albedo, inout float alpha,
+void light_process_omni(uint idx, vec3 vertex, float vertex_w, vec3 eye_vec, vec3 normal, vec3 vertex_ddx, vec3 vertex_ddy, vec3 f0, uint orms, float shadow, vec3 albedo, inout float alpha,
 #ifdef LIGHT_BACKLIGHT_USED
 		vec3 backlight,
 #endif
@@ -575,14 +575,16 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 v
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 	vec3 light_rel_vec = omni_lights.data[idx].position - vertex;
 	float light_length = length(light_rel_vec);
-	float omni_attenuation = get_omni_attenuation(light_length, omni_lights.data[idx].inv_radius, omni_lights.data[idx].attenuation, omni_lights.data[idx].slice_offset);
+	float light_rel_w = omni_lights.data[idx].slice_offset - vertex_w;
+	float slice_distance = length(vec2(light_length, light_rel_w));
+	float omni_attenuation = get_omni_attenuation(light_length, omni_lights.data[idx].inv_radius, omni_lights.data[idx].attenuation, light_rel_w);
 	float light_attenuation = omni_attenuation;
 	vec3 color = omni_lights.data[idx].color;
 
 	float size_A = 0.0;
 
 	if (sc_use_light_soft_shadows && omni_lights.data[idx].size > 0.0) {
-		float t = omni_lights.data[idx].size / max(0.001, light_length);
+		float t = omni_lights.data[idx].size / max(0.001, slice_distance);
 		size_A = max(0.0, 1.0 - 1 / sqrt(1 + t * t));
 	}
 
@@ -683,7 +685,7 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 v
 	light_attenuation *= shadow;
 
 	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
-	float slice_component = omni_lights.data[idx].slice_offset / max(length(vec2(light_length, omni_lights.data[idx].slice_offset)), 0.0001);
+	float slice_component = light_rel_w / max(slice_distance, 0.0001);
 	light_compute(normal, light_rel_vec_norm, eye_vec, size_A, color, false, light_attenuation, slice_component, f0, orms, omni_lights.data[idx].specular_amount, albedo, alpha,
 #ifdef LIGHT_BACKLIGHT_USED
 			backlight,
@@ -802,7 +804,7 @@ vec2 normal_to_panorama(vec3 n) {
 	return panorama_coords;
 }
 
-void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 vertex_ddx, vec3 vertex_ddy, vec3 f0, uint orms, float shadow, vec3 albedo, inout float alpha,
+void light_process_spot(uint idx, vec3 vertex, float vertex_w, vec3 eye_vec, vec3 normal, vec3 vertex_ddx, vec3 vertex_ddy, vec3 f0, uint orms, float shadow, vec3 albedo, inout float alpha,
 #ifdef LIGHT_BACKLIGHT_USED
 		vec3 backlight,
 #endif
@@ -825,9 +827,10 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 v
 	vec3 light_rel_vec = spot_lights.data[idx].position - vertex;
 	float light_length = length(light_rel_vec);
 	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
-	float slice_distance = length(vec2(light_length, spot_lights.data[idx].slice_offset));
-	float slice_component = spot_lights.data[idx].slice_offset / max(slice_distance, 0.0001);
-	float spot_attenuation = get_omni_attenuation(light_length, spot_lights.data[idx].inv_radius, spot_lights.data[idx].attenuation, spot_lights.data[idx].slice_offset);
+	float light_rel_w = spot_lights.data[idx].slice_offset - vertex_w;
+	float slice_distance = length(vec2(light_length, light_rel_w));
+	float slice_component = light_rel_w / max(slice_distance, 0.0001);
+	float spot_attenuation = get_omni_attenuation(light_length, spot_lights.data[idx].inv_radius, spot_lights.data[idx].attenuation, light_rel_w);
 	vec3 spot_dir = spot_lights.data[idx].direction;
 
 	// This conversion to a highp float is crucial to prevent light leaking
@@ -844,7 +847,7 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 v
 	float size_A = 0.0;
 
 	if (sc_use_light_soft_shadows && spot_lights.data[idx].size > 0.0) {
-		float t = spot_lights.data[idx].size / max(0.001, light_length);
+		float t = spot_lights.data[idx].size / max(0.001, slice_distance);
 		size_A = max(0.0, 1.0 - 1 / sqrt(1 + t * t));
 	}
 
