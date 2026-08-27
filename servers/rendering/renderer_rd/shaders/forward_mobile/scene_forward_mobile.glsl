@@ -80,30 +80,31 @@ void axis_angle_to_tbn(vec3 axis, float angle, out vec3 tangent, out vec3 binorm
 /* Varyings */
 
 layout(location = 0) highp out vec3 vertex_interp;
+layout(location = 1) highp out float vertex_w_interp;
 
 #ifdef NORMAL_USED
-layout(location = 1) mediump out vec3 normal_interp;
+layout(location = 2) mediump out vec3 normal_interp;
 #endif
 
 #if defined(COLOR_USED)
-layout(location = 2) mediump out vec4 color_interp;
+layout(location = 3) mediump out vec4 color_interp;
 #endif
 
 #ifdef UV_USED
-layout(location = 3) mediump out vec2 uv_interp;
+layout(location = 4) mediump out vec2 uv_interp;
 #endif
 
 #if defined(UV2_USED) || defined(USE_LIGHTMAP)
-layout(location = 4) mediump out vec2 uv2_interp;
+layout(location = 5) mediump out vec2 uv2_interp;
 #endif
 
 #if defined(TANGENT_USED) || defined(NORMAL_MAP_USED) || defined(LIGHT_ANISOTROPY_USED)
-layout(location = 5) mediump out vec3 tangent_interp;
-layout(location = 6) mediump out vec3 binormal_interp;
+layout(location = 6) mediump out vec3 tangent_interp;
+layout(location = 7) mediump out vec3 binormal_interp;
 #endif
 #if !defined(MODE_RENDER_DEPTH) && !defined(MODE_UNSHADED) && defined(USE_VERTEX_LIGHTING)
-layout(location = 7) highp out vec4 diffuse_light_interp;
-layout(location = 8) highp out vec4 specular_light_interp;
+layout(location = 8) highp out vec4 diffuse_light_interp;
+layout(location = 9) highp out vec4 specular_light_interp;
 
 #include "../scene_forward_vertex_lights_inc.glsl"
 #endif // !defined(MODE_RENDER_DEPTH) && !defined(MODE_UNSHADED) && defined(USE_VERTEX_LIGHTING)
@@ -117,7 +118,7 @@ layout(set = MATERIAL_UNIFORM_SET, binding = 0, std140) uniform MaterialUniforms
 
 #ifdef MODE_DUAL_PARABOLOID
 
-layout(location = 9) out highp float dp_clip;
+layout(location = 10) out highp float dp_clip;
 
 #endif
 
@@ -378,6 +379,7 @@ void main() {
 #endif
 
 	float roughness = 1.0;
+	float vertex_w = 0.0;
 
 	mat4 modelview = scene_data.view_matrix * model_matrix;
 	mat3 modelview_normal = mat3(scene_data.view_matrix) * model_normal_matrix;
@@ -433,6 +435,7 @@ void main() {
 #endif
 
 	vertex_interp = vertex;
+	vertex_w_interp = vertex_w;
 
 	// Normalize TBN vectors before interpolation, per MikkTSpace.
 	// See: http://www.mikktspace.com/
@@ -459,13 +462,13 @@ void main() {
 	uvec2 omni_light_indices = instances.data[draw_call.instance_index].omni_lights;
 	for (uint i = 0; i < sc_omni_lights(); i++) {
 		uint light_index = (i > 3) ? ((omni_light_indices.y >> ((i - 4) * 8)) & 0xFF) : ((omni_light_indices.x >> (i * 8)) & 0xFF);
-		light_process_omni_vertex(light_index, vertex, view, normal_interp, roughness, diffuse_light_interp.rgb, specular_light_interp.rgb);
+		light_process_omni_vertex(light_index, vertex, vertex_w, view, normal_interp, roughness, diffuse_light_interp.rgb, specular_light_interp.rgb);
 	}
 
 	uvec2 spot_light_indices = instances.data[draw_call.instance_index].spot_lights;
 	for (uint i = 0; i < sc_spot_lights(); i++) {
 		uint light_index = (i > 3) ? ((spot_light_indices.y >> ((i - 4) * 8)) & 0xFF) : ((spot_light_indices.x >> (i * 8)) & 0xFF);
-		light_process_spot_vertex(light_index, vertex, view, normal_interp, roughness, diffuse_light_interp.rgb, specular_light_interp.rgb);
+		light_process_spot_vertex(light_index, vertex, vertex_w, view, normal_interp, roughness, diffuse_light_interp.rgb, specular_light_interp.rgb);
 	}
 
 	if (sc_directional_lights() > 0) {
@@ -586,36 +589,37 @@ void main() {
 /* Varyings */
 
 layout(location = 0) highp in vec3 vertex_interp;
+layout(location = 1) highp in float vertex_w_interp;
 
 #ifdef NORMAL_USED
-layout(location = 1) mediump in vec3 normal_interp;
+layout(location = 2) mediump in vec3 normal_interp;
 #endif
 
 #if defined(COLOR_USED)
-layout(location = 2) mediump in vec4 color_interp;
+layout(location = 3) mediump in vec4 color_interp;
 #endif
 
 #ifdef UV_USED
-layout(location = 3) mediump in vec2 uv_interp;
+layout(location = 4) mediump in vec2 uv_interp;
 #endif
 
 #if defined(UV2_USED) || defined(USE_LIGHTMAP)
-layout(location = 4) mediump in vec2 uv2_interp;
+layout(location = 5) mediump in vec2 uv2_interp;
 #endif
 
 #if defined(TANGENT_USED) || defined(NORMAL_MAP_USED) || defined(LIGHT_ANISOTROPY_USED)
-layout(location = 5) mediump in vec3 tangent_interp;
-layout(location = 6) mediump in vec3 binormal_interp;
+layout(location = 6) mediump in vec3 tangent_interp;
+layout(location = 7) mediump in vec3 binormal_interp;
 #endif
 
 #if !defined(MODE_RENDER_DEPTH) && !defined(MODE_UNSHADED) && defined(USE_VERTEX_LIGHTING)
-layout(location = 7) highp in vec4 diffuse_light_interp;
-layout(location = 8) highp in vec4 specular_light_interp;
+layout(location = 8) highp in vec4 diffuse_light_interp;
+layout(location = 9) highp in vec4 specular_light_interp;
 #endif
 
 #ifdef MODE_DUAL_PARABOLOID
 
-layout(location = 9) highp in float dp_clip;
+layout(location = 10) highp in float dp_clip;
 
 #endif
 
@@ -851,6 +855,7 @@ void main() {
 
 	//lay out everything, whatever is unused is optimized away anyway
 	vec3 vertex = vertex_interp;
+	float vertex_w = vertex_w_interp;
 #ifdef USE_MULTIVIEW
 	vec3 eye_offset = scene_data.eye_offset[ViewIndex].xyz;
 	vec3 view = -normalize(vertex_interp - eye_offset);
@@ -957,6 +962,7 @@ void main() {
 
 #ifdef LIGHT_VERTEX_USED
 	vec3 light_vertex = vertex;
+	float light_vertex_w = vertex_w;
 #endif //LIGHT_VERTEX_USED
 
 	mat3 model_normal_matrix;
@@ -975,6 +981,7 @@ void main() {
 
 #ifdef LIGHT_VERTEX_USED
 	vertex = light_vertex;
+	vertex_w = light_vertex_w;
 #ifdef USE_MULTIVIEW
 	view = -normalize(vertex - eye_offset);
 #else
@@ -1731,7 +1738,7 @@ void main() {
 	uvec2 omni_indices = instances.data[draw_call.instance_index].omni_lights;
 	for (uint i = 0; i < sc_omni_lights(); i++) {
 		uint light_index = (i > 3) ? ((omni_indices.y >> ((i - 4) * 8)) & 0xFF) : ((omni_indices.x >> (i * 8)) & 0xFF);
-		light_process_omni(light_index, vertex, view, normal, vertex_ddx, vertex_ddy, f0, orms, scene_data.taa_frame_count, albedo, alpha, screen_uv,
+		light_process_omni(light_index, vertex, vertex_w, view, normal, vertex_ddx, vertex_ddy, f0, orms, scene_data.taa_frame_count, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 				backlight,
 #endif
@@ -1759,7 +1766,7 @@ void main() {
 	uvec2 spot_indices = instances.data[draw_call.instance_index].spot_lights;
 	for (uint i = 0; i < sc_spot_lights(); i++) {
 		uint light_index = (i > 3) ? ((spot_indices.y >> ((i - 4) * 8)) & 0xFF) : ((spot_indices.x >> (i * 8)) & 0xFF);
-		light_process_spot(light_index, vertex, view, normal, vertex_ddx, vertex_ddy, f0, orms, scene_data.taa_frame_count, albedo, alpha, screen_uv,
+		light_process_spot(light_index, vertex, vertex_w, view, normal, vertex_ddx, vertex_ddy, f0, orms, scene_data.taa_frame_count, albedo, alpha, screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 				backlight,
 #endif
