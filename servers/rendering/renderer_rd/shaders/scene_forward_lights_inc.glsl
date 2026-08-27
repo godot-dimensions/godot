@@ -432,7 +432,7 @@ float get_spot_cosine(vec3 light_direction, float light_slice_component, vec3 sp
 	return light_xyz_component * spot_xyz_component * dot(-light_direction, spot_direction) - light_slice_component * spot_slice_direction;
 }
 
-void light_process_omni(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3 vertex_ddx, vec3 vertex_ddy, hvec3 f0, half roughness, half metallic, float taa_frame_count, hvec3 albedo, inout half alpha, vec2 screen_uv, hvec3 energy_compensation,
+void light_process_omni(uint idx, vec3 vertex, float vertex_w, hvec3 eye_vec, hvec3 normal, vec3 vertex_ddx, vec3 vertex_ddy, hvec3 f0, half roughness, half metallic, float taa_frame_count, hvec3 albedo, inout half alpha, vec2 screen_uv, hvec3 energy_compensation,
 #ifdef LIGHT_BACKLIGHT_USED
 		hvec3 backlight,
 #endif
@@ -455,12 +455,14 @@ void light_process_omni(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 	// Omni light attenuation.
 	vec3 light_rel_vec = omni_lights.data[idx].position - vertex;
 	float light_length = length(light_rel_vec);
-	half omni_attenuation = get_omni_attenuation(light_length, omni_lights.data[idx].inv_radius, omni_lights.data[idx].attenuation, omni_lights.data[idx].slice_offset);
+	float light_rel_w = omni_lights.data[idx].slice_offset - vertex_w;
+	float slice_distance = length(vec2(light_length, light_rel_w));
+	half omni_attenuation = get_omni_attenuation(light_length, omni_lights.data[idx].inv_radius, omni_lights.data[idx].attenuation, light_rel_w);
 
 	// Compute size.
 	half size = half(0.0);
 	if (sc_use_light_soft_shadows() && omni_lights.data[idx].size > 0.0) {
-		half t = half(omni_lights.data[idx].size / max(0.001, light_length));
+		half t = half(omni_lights.data[idx].size / max(0.001, slice_distance));
 		size = half(1.0) / sqrt(half(1.0) + t * t);
 		size = max(half(1.0) - size, half(0.0));
 	}
@@ -694,7 +696,7 @@ void light_process_omni(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 	}
 
 	vec3 light_rel_vec_norm = light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0);
-	float slice_component = omni_lights.data[idx].slice_offset / max(length(vec2(light_length, omni_lights.data[idx].slice_offset)), 0.0001);
+	float slice_component = light_rel_w / max(slice_distance, 0.0001);
 	light_compute(normal, hvec3(light_rel_vec_norm), eye_vec, size, hvec3(color), false, omni_attenuation * shadow, slice_component, f0, roughness, metallic, half(omni_lights.data[idx].specular_amount), albedo, alpha, screen_uv, energy_compensation,
 #ifdef LIGHT_BACKLIGHT_USED
 			backlight,
@@ -730,7 +732,7 @@ vec2 normal_to_panorama(vec3 n) {
 	return panorama_coords;
 }
 
-void light_process_spot(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3 vertex_ddx, vec3 vertex_ddy, hvec3 f0, half roughness, half metallic, float taa_frame_count, hvec3 albedo, inout half alpha, vec2 screen_uv, hvec3 energy_compensation,
+void light_process_spot(uint idx, vec3 vertex, float vertex_w, hvec3 eye_vec, hvec3 normal, vec3 vertex_ddx, vec3 vertex_ddy, hvec3 f0, half roughness, half metallic, float taa_frame_count, hvec3 albedo, inout half alpha, vec2 screen_uv, hvec3 energy_compensation,
 #ifdef LIGHT_BACKLIGHT_USED
 		hvec3 backlight,
 #endif
@@ -755,9 +757,10 @@ void light_process_spot(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 	vec3 light_rel_vec = spot_lights.data[idx].position - vertex;
 	float light_length = length(light_rel_vec);
 	hvec3 light_rel_vec_norm = hvec3(light_length > 0.0 ? light_rel_vec / light_length : vec3(0.0));
-	float slice_distance = length(vec2(light_length, spot_lights.data[idx].slice_offset));
-	float slice_component = spot_lights.data[idx].slice_offset / max(slice_distance, 0.0001);
-	half spot_attenuation = get_omni_attenuation(light_length, spot_lights.data[idx].inv_radius, spot_lights.data[idx].attenuation, spot_lights.data[idx].slice_offset);
+	float light_rel_w = spot_lights.data[idx].slice_offset - vertex_w;
+	float slice_distance = length(vec2(light_length, light_rel_w));
+	float slice_component = light_rel_w / max(slice_distance, 0.0001);
+	half spot_attenuation = get_omni_attenuation(light_length, spot_lights.data[idx].inv_radius, spot_lights.data[idx].attenuation, light_rel_w);
 	vec3 spot_dir = spot_lights.data[idx].direction;
 	float cone_angle = spot_lights.data[idx].cone_angle;
 	float scos = max(get_spot_cosine(vec3(light_rel_vec_norm), slice_component, spot_dir, spot_lights.data[idx].slice_direction), cone_angle);
@@ -769,7 +772,7 @@ void light_process_spot(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 	// Compute size.
 	half size = half(0.0);
 	if (sc_use_light_soft_shadows() && spot_lights.data[idx].size > 0.0) {
-		half t = half(spot_lights.data[idx].size / max(0.001, light_length));
+		half t = half(spot_lights.data[idx].size / max(0.001, slice_distance));
 		size = half(1.0) / sqrt(half(1.0) + t * t);
 		size = max(half(1.0) - size, half(0.0));
 	}
