@@ -436,10 +436,8 @@ void light_compute(vec3 N, vec3 L, vec3 V, vec3 light_color, bool is_directional
 }
 
 float get_omni_spot_attenuation(float distance, float inv_range, float decay, float slice_offset) {
-	float range = 1.0 / inv_range;
 	distance = length(vec2(distance, slice_offset));
-	float range_with_slice = length(vec2(range, slice_offset));
-	float nd = distance / range_with_slice;
+	float nd = distance * inv_range;
 	nd *= nd;
 	nd *= nd; // nd^4
 	nd = max(1.0 - nd, 0.0);
@@ -1783,10 +1781,8 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_di
 }
 
 float get_omni_spot_attenuation(float distance, float inv_range, float decay, float slice_offset) {
-	float range = 1.0 / inv_range;
 	distance = length(vec2(distance, slice_offset));
-	float range_with_slice = length(vec2(range, slice_offset));
-	float nd = distance / range_with_slice;
+	float nd = distance * inv_range;
 	nd *= nd;
 	nd *= nd; // nd^4
 	nd = max(1.0 - nd, 0.0);
