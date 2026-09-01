@@ -4167,6 +4167,11 @@ bool BindingsGenerator::_arg_default_value_from_variant(const Variant &p_val, Ar
 		case Variant::FLOAT:
 			if (r_iarg.type.cname == name_cache.type_float) {
 				r_iarg.default_argument += "f";
+			} else if (!r_iarg.default_argument.contains(".")) {
+				// String::num prints large values without a decimal point (3.4e38
+				// becomes "34" followed by 37 more digits), which C# would reject
+				// as an out-of-range integer literal.
+				r_iarg.default_argument += ".0";
 			}
 			break;
 		case Variant::STRING:
